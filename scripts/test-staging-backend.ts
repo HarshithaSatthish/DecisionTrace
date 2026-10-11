@@ -54,8 +54,8 @@ const isSimulator = Boolean(args.simulator);
 const allowMutations = Boolean(args['allow-mutations']);
 const targetMode = isSimulator ? 'simulator' : 'real';
 
-const rawUrl =
-  args.url ||
+const rawUrl: string =
+  (typeof args.url === 'string' ? args.url : '') ||
   process.env.DT_BACKEND_URL ||
   process.env.DECISIONTRACE_BACKEND_URL ||
   (isSimulator ? 'http://127.0.0.1:8001' : 'http://localhost:8000/api/v1');
@@ -69,8 +69,8 @@ try {
   process.exit(1);
 }
 
-const env: Record<string, string> = {
-  ...process.env as Record<string, string>,
+const env: NodeJS.ProcessEnv = {
+  ...process.env,
   PYTHONUTF8: '1'
 };
 
@@ -80,10 +80,10 @@ if (isSimulator) {
   env.DT_BACKEND_URL = rawUrl;
   env.DT_TARGET_ENV = 'safe-test';
   env.DT_SAFE_HOST = targetHost;
-  env.DT_USER_ID = args['user-id'] || process.env.DT_USER_ID || 'usr_staging_operator';
-  env.DT_ORG_ID = args['org-id'] || process.env.DT_ORG_ID || 'org_staging_tenant';
+  env.DT_USER_ID = (typeof args['user-id'] === 'string' ? args['user-id'] : '') || process.env.DT_USER_ID || 'usr_staging_operator';
+  env.DT_ORG_ID = (typeof args['org-id'] === 'string' ? args['org-id'] : '') || process.env.DT_ORG_ID || 'org_staging_tenant';
   
-  const token = args.token || process.env.DT_API_TOKEN;
+  const token = (typeof args.token === 'string' ? args.token : '') || process.env.DT_API_TOKEN;
   if (token) {
     env.DT_API_TOKEN = token;
   }
@@ -113,23 +113,68 @@ if (!isSimulator && !allowMutations) {
 
 const integrationDir = path.resolve(process.cwd(), 'integration-tests');
 
-const pyRunner = spawn(
-  'python',
-  ['-X', 'utf8', '-m', 'decisiontrace_testing.runner', 'run', '--target', targetMode],
-  {
-    cwd: integrationDir,
-    env,
-    stdio: 'inherit'
-  }
-);
+async function runSuite() {
+  let simCleanup: (() => void) | null = null;
 
-pyRunner.on('close', (code) => {
-  console.log('-'.repeat(72));
-  if (code === 0) {
-    console.log(`✅ ${targetMode.toUpperCase()} CONTRACT VERIFICATION COMPLETED (Exit Code: 0)`);
-  } else {
-    console.log(`⚠️  ${targetMode.toUpperCase()} CONTRACT VERIFICATION RETURNED STATUS CODE: ${code}`);
+  if (isSimulator) {
+    try {
+      const probe = await fetch('http://127.0.0.1:8001/openapi.json').catch(() => null);
+      if (probe && probe.ok) {
+        console.log('ℹ️  Connected to running simulator on port 8001.');
+      } else {
+        console.log('🚀 Auto-starting local FastAPI simulator on port 8001...');
+        const simProc = spawn(
+          'python',
+          ['-m', 'uvicorn', 'decisiontrace_testing.simulator:app', '--host', '127.0.0.1', '--port', '8001'],
+          { cwd: integrationDir, stdio: 'ignore' }
+        );
+
+        simCleanup = () => {
+          try {
+            simProc.kill('SIGTERM');
+          } catch {}
+        };
+
+        for (let i = 0; i < 25; i++) {
+          await new Promise((r) => setTimeout(r, 200));
+          try {
+            const check = await fetch('http://127.0.0.1:8001/openapi.json').catch(() => null);
+            if (check && check.ok) {
+              console.log('✅ Local simulator initialized successfully.');
+              break;
+            }
+          } catch {}
+        }
+      }
+    } catch {
+      // Continue to runner
+    }
   }
-  console.log('='.repeat(72));
-  process.exit(code ?? 1);
-});
+
+  const pyRunner = spawn(
+    'python',
+    ['-X', 'utf8', '-m', 'decisiontrace_testing.runner', 'run', '--target', targetMode],
+    {
+      cwd: integrationDir,
+      env,
+      stdio: 'inherit'
+    }
+  );
+
+  pyRunner.on('close', (code) => {
+    if (simCleanup) {
+      simCleanup();
+    }
+    console.log('-'.repeat(72));
+    if (code === 0) {
+      console.log(`✅ ${targetMode.toUpperCase()} CONTRACT VERIFICATION COMPLETED (Exit Code: 0)`);
+    } else {
+      console.log(`⚠️  ${targetMode.toUpperCase()} CONTRACT VERIFICATION RETURNED STATUS CODE: ${code}`);
+    }
+    console.log('='.repeat(72));
+    process.exit(code ?? 1);
+  });
+}
+
+runSuite();
+

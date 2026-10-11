@@ -13,15 +13,16 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Icons } from '@/components/icons';
-import { Decision } from '../../types';
+import { Decision, Commitment } from '../../types';
 import { DecisionStatusBadge } from '../status-badges';
 import { DecisionDetailDrawer } from './decision-detail-drawer';
 
 interface DecisionsTableProps {
   initialDecisions: Decision[];
+  initialCommitments?: Commitment[];
 }
 
-export function DecisionsTable({ initialDecisions }: DecisionsTableProps) {
+export function DecisionsTable({ initialDecisions, initialCommitments }: DecisionsTableProps) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -222,6 +223,7 @@ export function DecisionsTable({ initialDecisions }: DecisionsTableProps) {
         decision={selectedDecision}
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
+        commitments={initialCommitments}
       />
     </div>
   );

@@ -69,14 +69,4 @@ export async function verifyDecisionTraceAuth(): Promise<AuthResult> {
   }
 }
 
-/**
- * Checks whether development preview mode is permitted.
- * In strict production without NEXT_PUBLIC_DECISIONTRACE_DEMO_PREVIEW=true,
- * mock fixtures are prohibited.
- */
-export function isDevPreviewEnabled(): boolean {
-  return (
-    process.env.NODE_ENV !== 'production' ||
-    process.env.NEXT_PUBLIC_DECISIONTRACE_DEMO_PREVIEW === 'true'
-  );
-}
+export { isDevPreviewEnabled } from './decision-trace-preview';

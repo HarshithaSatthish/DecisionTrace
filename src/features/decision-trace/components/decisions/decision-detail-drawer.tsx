@@ -10,22 +10,30 @@ import {
 } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { Icons } from '@/components/icons';
-import { Decision } from '../../types';
+import { Decision, Commitment } from '../../types';
 import { DecisionStatusBadge } from '../status-badges';
 import { EvidenceCard } from '../evidence-card';
 import { FIXTURE_COMMITMENTS } from '../../data/fixtures';
+import { isDevPreviewEnabled } from '@/lib/decision-trace-preview';
 import Link from 'next/link';
 
 interface DecisionDetailDrawerProps {
   decision: Decision | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  commitments?: Commitment[];
 }
 
-export function DecisionDetailDrawer({ decision, open, onOpenChange }: DecisionDetailDrawerProps) {
+export function DecisionDetailDrawer({
+  decision,
+  open,
+  onOpenChange,
+  commitments
+}: DecisionDetailDrawerProps) {
   if (!decision) return null;
 
-  const relatedCommitments = FIXTURE_COMMITMENTS.filter(
+  const pool = commitments ?? (isDevPreviewEnabled() ? FIXTURE_COMMITMENTS : []);
+  const relatedCommitments = pool.filter(
     (c) => decision.relatedCommitmentIds?.includes(c.id) || c.relatedDecisionId === decision.id
   );
 

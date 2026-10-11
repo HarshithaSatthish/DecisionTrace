@@ -3,6 +3,7 @@
 import React from 'react';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Icons } from '@/components/icons';
 import {
   ChartConfig,
   ChartContainer,
@@ -24,7 +25,16 @@ const chartConfig = {
   }
 } satisfies ChartConfig;
 
-export function CommitmentVelocityChart() {
+import { isDevPreviewEnabled } from '@/lib/decision-trace-preview';
+
+interface CommitmentVelocityChartProps {
+  data?: Array<{ status: string; count: number; fill: string }>;
+}
+
+export function CommitmentVelocityChart({ data }: CommitmentVelocityChartProps = {}) {
+  const displayData = data ?? (isDevPreviewEnabled() ? chartData : []);
+  const hasData = displayData.some((d) => d.count > 0);
+
   return (
     <Card className='border-border/80 shadow-xs'>
       <CardHeader>
@@ -34,15 +44,25 @@ export function CommitmentVelocityChart() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className='aspect-auto h-[240px] w-full'>
-          <BarChart data={chartData} margin={{ left: -10, right: 10, top: 10, bottom: 0 }}>
-            <CartesianGrid vertical={false} strokeDasharray='3 3' stroke='oklch(0.92 0.005 85)' />
-            <XAxis dataKey='status' tickLine={false} axisLine={false} fontSize={12} />
-            <YAxis tickLine={false} axisLine={false} fontSize={12} />
-            <ChartTooltip content={<ChartTooltipContent />} />
-            <Bar dataKey='count' radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ChartContainer>
+        {hasData ? (
+          <ChartContainer config={chartConfig} className='aspect-auto h-[240px] w-full'>
+            <BarChart data={displayData} margin={{ left: -10, right: 10, top: 10, bottom: 0 }}>
+              <CartesianGrid vertical={false} strokeDasharray='3 3' stroke='oklch(0.92 0.005 85)' />
+              <XAxis dataKey='status' tickLine={false} axisLine={false} fontSize={12} />
+              <YAxis tickLine={false} axisLine={false} fontSize={12} />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Bar dataKey='count' radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ChartContainer>
+        ) : (
+          <div className='flex flex-col items-center justify-center h-[240px] w-full text-center text-muted-foreground'>
+            <Icons.circleCheck className='size-8 text-muted-foreground/30 mb-2' />
+            <p className='text-xs font-medium'>No commitment data available</p>
+            <p className='text-[11px] text-muted-foreground/70 mt-0.5'>
+              Fulfillment status will populate as commitments are tracked and updated.
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

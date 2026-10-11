@@ -1,6 +1,6 @@
 import React from 'react';
 import PageContainer from '@/components/layout/page-container';
-import { getDecisions } from '@/features/decision-trace/api/service';
+import { getDecisions, getCommitments } from '@/features/decision-trace/api/service';
 import { DecisionsTable } from '@/features/decision-trace/components/decisions/decisions-table';
 import { DevelopmentPreviewBanner } from '@/features/decision-trace/components/development-preview-banner';
 import { Badge } from '@/components/ui/badge';
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 };
 
 export default async function DecisionsPage() {
-  const decisions = await getDecisions();
+  const [decisions, commitments] = await Promise.all([getDecisions(), getCommitments()]);
 
   return (
     <PageContainer>
@@ -36,7 +36,7 @@ export default async function DecisionsPage() {
           </div>
         </div>
 
-        <DecisionsTable initialDecisions={decisions} />
+        <DecisionsTable initialDecisions={decisions} initialCommitments={commitments} />
       </div>
     </PageContainer>
   );

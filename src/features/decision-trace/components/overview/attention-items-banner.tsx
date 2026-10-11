@@ -3,10 +3,20 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Icons } from '@/components/icons';
 import Link from 'next/link';
+import { AttentionItem } from '../../types';
 import { FIXTURE_METRICS } from '../../data/fixtures';
+import { isDevPreviewEnabled } from '@/lib/decision-trace-preview';
 
-export function AttentionItemsBanner() {
-  const items = FIXTURE_METRICS.attentionItems;
+interface AttentionItemsBannerProps {
+  items?: AttentionItem[];
+}
+
+export function AttentionItemsBanner({ items }: AttentionItemsBannerProps = {}) {
+  const displayItems = items ?? (isDevPreviewEnabled() ? FIXTURE_METRICS.attentionItems : []);
+
+  if (displayItems.length === 0) {
+    return null;
+  }
 
   return (
     <Card className='border-amber-500/30 bg-amber-500/5 shadow-xs'>
@@ -29,13 +39,13 @@ export function AttentionItemsBanner() {
             variant='outline'
             className='border-amber-500/40 bg-white/60 text-amber-800 text-[11px]'
           >
-            {items.length} High Priority
+            {displayItems.length} High Priority
           </Badge>
         </div>
       </CardHeader>
       <CardContent className='px-4 pb-3 pt-1'>
         <div className='grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-4'>
-          {items.map((item) => (
+          {displayItems.map((item) => (
             <Link
               key={item.id}
               href={item.actionUrl}

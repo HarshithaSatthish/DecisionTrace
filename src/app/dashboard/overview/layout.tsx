@@ -11,11 +11,11 @@ import {
 import { Icons } from '@/components/icons';
 import React from 'react';
 import Link from 'next/link';
-import { FIXTURE_METRICS } from '@/features/decision-trace/data/fixtures';
+import { getDashboardMetrics } from '@/features/decision-trace/api/service';
 import { AttentionItemsBanner } from '@/features/decision-trace/components/overview/attention-items-banner';
 import { DevelopmentPreviewBanner } from '@/features/decision-trace/components/development-preview-banner';
 
-export default function OverViewLayout({
+export default async function OverViewLayout({
   sales,
   pie_stats,
   bar_stats,
@@ -26,7 +26,7 @@ export default function OverViewLayout({
   bar_stats: React.ReactNode;
   area_stats: React.ReactNode;
 }) {
-  const metrics = FIXTURE_METRICS;
+  const metrics = await getDashboardMetrics();
 
   return (
     <PageContainer>
@@ -187,7 +187,7 @@ export default function OverViewLayout({
         </div>
 
         {/* Attention-Required Banner */}
-        <AttentionItemsBanner />
+        <AttentionItemsBanner items={metrics.attentionItems} />
 
         {/* Decision Trends & Activity Stream */}
         <div className='grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-7'>

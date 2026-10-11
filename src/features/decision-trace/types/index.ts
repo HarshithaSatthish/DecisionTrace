@@ -137,6 +137,15 @@ export interface ActivityItem {
   statusBadge?: string;
 }
 
+export type AttentionItem = {
+  id: string;
+  type: 'conflict' | 'approval' | 'commitment';
+  title: string;
+  severity: ImpactLevel;
+  actionUrl: string;
+  time: string;
+};
+
 export interface DashboardMetrics {
   activeDecisionsCount: number;
   openCommitmentsCount: number;
@@ -147,15 +156,10 @@ export interface DashboardMetrics {
     decisions: number;
     commitments: number;
   }[];
-  attentionItems: {
-    id: string;
-    type: 'conflict' | 'approval' | 'commitment';
-    title: string;
-    severity: ImpactLevel;
-    actionUrl: string;
-    time: string;
-  }[];
+  attentionItems: AttentionItem[];
   recentActivity: ActivityItem[];
+  isProductionOffline?: boolean;
+  message?: string;
 }
 
 // Filter Contracts

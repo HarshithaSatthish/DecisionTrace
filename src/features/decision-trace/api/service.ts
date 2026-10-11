@@ -26,6 +26,18 @@ import {
   FIXTURE_ACTIVITY,
   FIXTURE_METRICS
 } from '../data/fixtures';
+import { isDevPreviewEnabled } from '@/lib/decision-trace-preview';
+
+export const EMPTY_METRICS: DashboardMetrics = {
+  activeDecisionsCount: 0,
+  openCommitmentsCount: 0,
+  detectedConflictsCount: 0,
+  pendingApprovalsCount: 0,
+  decisionTrend: [],
+  attentionItems: [],
+  recentActivity: [],
+  isProductionOffline: true
+};
 
 // Helper to determine if we should attempt direct FastAPI backend or proxy handler
 export async function getDashboardMetrics(): Promise<DashboardMetrics> {
@@ -35,46 +47,71 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
       if (res.ok) {
         return (await res.json()) as DashboardMetrics;
       }
+    } else {
+      const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
+      if (backendUrl) {
+        const res = await fetch(`${backendUrl}/metrics`, { cache: 'no-store' });
+        if (res.ok) {
+          return (await res.json()) as DashboardMetrics;
+        }
+      }
     }
   } catch (error) {
-    console.warn('Backend metrics fetch failed, using fallback preview:', error);
+    console.warn('Backend metrics fetch failed, evaluating preview mode:', error);
   }
-  return FIXTURE_METRICS;
+
+  if (isDevPreviewEnabled()) {
+    return FIXTURE_METRICS;
+  }
+  return EMPTY_METRICS;
 }
 
 export async function getDecisions(filters?: DecisionFilters): Promise<Decision[]> {
   try {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams();
-      if (filters?.search) params.set('search', filters.search);
-      if (filters?.status && filters.status !== 'all') params.set('status', filters.status);
-      if (filters?.category && filters.category !== 'all') params.set('category', filters.category);
+    const params = new URLSearchParams();
+    if (filters?.search) params.set('search', filters.search);
+    if (filters?.status && filters.status !== 'all') params.set('status', filters.status);
+    if (filters?.category && filters.category !== 'all') params.set('category', filters.category);
+    const qs = params.toString() ? `?${params.toString()}` : '';
 
-      const res = await fetch(`/api/decision-trace/decisions?${params.toString()}`);
+    if (typeof window !== 'undefined') {
+      const res = await fetch(`/api/decision-trace/decisions${qs}`);
       if (res.ok) {
         const data = await res.json();
-        return Array.isArray(data) ? data : (data.items ?? FIXTURE_DECISIONS);
+        return Array.isArray(data) ? data : (data.items ?? []);
+      }
+    } else {
+      const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
+      if (backendUrl) {
+        const res = await fetch(`${backendUrl}/decisions${qs}`, { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          return Array.isArray(data) ? data : (data.items ?? []);
+        }
       }
     }
   } catch (error) {
-    console.warn('Backend decisions fetch failed, using fallback preview:', error);
+    console.warn('Backend decisions fetch failed, evaluating preview mode:', error);
   }
 
-  // Filter local preview items
-  let result = [...FIXTURE_DECISIONS];
-  if (filters?.search) {
-    const q = filters.search.toLowerCase();
-    result = result.filter(
-      (d) =>
-        d.title.toLowerCase().includes(q) ||
-        d.whatWasDecided.toLowerCase().includes(q) ||
-        d.summary.toLowerCase().includes(q)
-    );
+  if (isDevPreviewEnabled()) {
+    let result = [...FIXTURE_DECISIONS];
+    if (filters?.search) {
+      const q = filters.search.toLowerCase();
+      result = result.filter(
+        (d) =>
+          d.title.toLowerCase().includes(q) ||
+          d.whatWasDecided.toLowerCase().includes(q) ||
+          d.summary.toLowerCase().includes(q)
+      );
+    }
+    if (filters?.status && filters.status !== 'all') {
+      result = result.filter((d) => d.status === filters.status);
+    }
+    return result;
   }
-  if (filters?.status && filters.status !== 'all') {
-    result = result.filter((d) => d.status === filters.status);
-  }
-  return result;
+
+  return [];
 }
 
 export async function getDecisionById(id: string): Promise<Decision | null> {
@@ -84,36 +121,50 @@ export async function getDecisionById(id: string): Promise<Decision | null> {
 
 export async function getCommitments(filters?: CommitmentFilters): Promise<Commitment[]> {
   try {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams();
-      if (filters?.status && filters.status !== 'all') params.set('status', filters.status);
-      if (filters?.owner && filters.owner !== 'all') params.set('owner', filters.owner);
-      if (filters?.priority && filters.priority !== 'all') params.set('priority', filters.priority);
+    const params = new URLSearchParams();
+    if (filters?.status && filters.status !== 'all') params.set('status', filters.status);
+    if (filters?.owner && filters.owner !== 'all') params.set('owner', filters.owner);
+    if (filters?.priority && filters.priority !== 'all') params.set('priority', filters.priority);
+    const qs = params.toString() ? `?${params.toString()}` : '';
 
-      const res = await fetch(`/api/decision-trace/commitments?${params.toString()}`);
+    if (typeof window !== 'undefined') {
+      const res = await fetch(`/api/decision-trace/commitments${qs}`);
       if (res.ok) {
         const data = await res.json();
-        return Array.isArray(data) ? data : (data.items ?? FIXTURE_COMMITMENTS);
+        return Array.isArray(data) ? data : (data.items ?? []);
+      }
+    } else {
+      const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
+      if (backendUrl) {
+        const res = await fetch(`${backendUrl}/commitments${qs}`, { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          return Array.isArray(data) ? data : (data.items ?? []);
+        }
       }
     }
   } catch (error) {
-    console.warn('Backend commitments fetch failed, using fallback preview:', error);
+    console.warn('Backend commitments fetch failed, evaluating preview mode:', error);
   }
 
-  let result = [...FIXTURE_COMMITMENTS];
-  if (filters?.search) {
-    const q = filters.search.toLowerCase();
-    result = result.filter(
-      (c) => c.title.toLowerCase().includes(q) || c.task.toLowerCase().includes(q)
-    );
+  if (isDevPreviewEnabled()) {
+    let result = [...FIXTURE_COMMITMENTS];
+    if (filters?.search) {
+      const q = filters.search.toLowerCase();
+      result = result.filter(
+        (c) => c.title.toLowerCase().includes(q) || c.task.toLowerCase().includes(q)
+      );
+    }
+    if (filters?.status && filters.status !== 'all') {
+      result = result.filter((c) => c.status === filters.status);
+    }
+    if (filters?.priority && filters.priority !== 'all') {
+      result = result.filter((c) => c.priority === filters.priority);
+    }
+    return result;
   }
-  if (filters?.status && filters.status !== 'all') {
-    result = result.filter((c) => c.status === filters.status);
-  }
-  if (filters?.priority && filters.priority !== 'all') {
-    result = result.filter((c) => c.priority === filters.priority);
-  }
-  return result;
+
+  return [];
 }
 
 export async function updateCommitmentStatus(
@@ -150,22 +201,39 @@ export async function updateCommitmentStatus(
 
 export async function getConflicts(filters?: ConflictFilters): Promise<Conflict[]> {
   try {
+    const params = new URLSearchParams();
+    if (filters?.status && filters.status !== 'all') params.set('status', filters.status);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+
     if (typeof window !== 'undefined') {
-      const res = await fetch('/api/decision-trace/conflicts');
+      const res = await fetch(`/api/decision-trace/conflicts${qs}`);
       if (res.ok) {
         const data = await res.json();
-        return Array.isArray(data) ? data : (data.items ?? FIXTURE_CONFLICTS);
+        return Array.isArray(data) ? data : (data.items ?? []);
+      }
+    } else {
+      const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
+      if (backendUrl) {
+        const res = await fetch(`${backendUrl}/conflicts${qs}`, { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          return Array.isArray(data) ? data : (data.items ?? []);
+        }
       }
     }
   } catch (error) {
-    console.warn('Backend conflicts fetch failed, using fallback preview:', error);
+    console.warn('Backend conflicts fetch failed, evaluating preview mode:', error);
   }
 
-  let result = [...FIXTURE_CONFLICTS];
-  if (filters?.status && filters.status !== 'all') {
-    result = result.filter((c) => c.status === filters.status);
+  if (isDevPreviewEnabled()) {
+    let result = [...FIXTURE_CONFLICTS];
+    if (filters?.status && filters.status !== 'all') {
+      result = result.filter((c) => c.status === filters.status);
+    }
+    return result;
   }
-  return result;
+
+  return [];
 }
 
 export async function resolveConflict(
@@ -202,22 +270,39 @@ export async function resolveConflict(
 
 export async function getApprovals(filters?: ApprovalFilters): Promise<ApprovalRequest[]> {
   try {
+    const params = new URLSearchParams();
+    if (filters?.status && filters.status !== 'all') params.set('status', filters.status);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+
     if (typeof window !== 'undefined') {
-      const res = await fetch('/api/decision-trace/approvals');
+      const res = await fetch(`/api/decision-trace/approvals${qs}`);
       if (res.ok) {
         const data = await res.json();
-        return Array.isArray(data) ? data : (data.items ?? FIXTURE_APPROVALS);
+        return Array.isArray(data) ? data : (data.items ?? []);
+      }
+    } else {
+      const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
+      if (backendUrl) {
+        const res = await fetch(`${backendUrl}/approvals${qs}`, { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          return Array.isArray(data) ? data : (data.items ?? []);
+        }
       }
     }
   } catch (error) {
-    console.warn('Backend approvals fetch failed, using fallback preview:', error);
+    console.warn('Backend approvals fetch failed, evaluating preview mode:', error);
   }
 
-  let result = [...FIXTURE_APPROVALS];
-  if (filters?.status && filters.status !== 'all') {
-    result = result.filter((a) => a.status === filters.status);
+  if (isDevPreviewEnabled()) {
+    let result = [...FIXTURE_APPROVALS];
+    if (filters?.status && filters.status !== 'all') {
+      result = result.filter((a) => a.status === filters.status);
+    }
+    return result;
   }
-  return result;
+
+  return [];
 }
 
 /**
@@ -263,20 +348,37 @@ export async function executeApprovalAction(
 
 export async function getActivity(filters?: ActivityFilters): Promise<ActivityItem[]> {
   try {
+    const params = new URLSearchParams();
+    if (filters?.type && filters.type !== 'all') params.set('type', filters.type);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+
     if (typeof window !== 'undefined') {
-      const res = await fetch('/api/decision-trace/activity');
+      const res = await fetch(`/api/decision-trace/activity${qs}`);
       if (res.ok) {
         const data = await res.json();
-        return Array.isArray(data) ? data : (data.items ?? FIXTURE_ACTIVITY);
+        return Array.isArray(data) ? data : (data.items ?? []);
+      }
+    } else {
+      const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
+      if (backendUrl) {
+        const res = await fetch(`${backendUrl}/activity${qs}`, { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          return Array.isArray(data) ? data : (data.items ?? []);
+        }
       }
     }
   } catch (error) {
-    console.warn('Backend activity fetch failed, using fallback preview:', error);
+    console.warn('Backend activity fetch failed, evaluating preview mode:', error);
   }
 
-  let result = [...FIXTURE_ACTIVITY];
-  if (filters?.type && filters.type !== 'all') {
-    result = result.filter((a) => a.type === filters.type);
+  if (isDevPreviewEnabled()) {
+    let result = [...FIXTURE_ACTIVITY];
+    if (filters?.type && filters.type !== 'all') {
+      result = result.filter((a) => a.type === filters.type);
+    }
+    return result;
   }
-  return result;
+
+  return [];
 }
