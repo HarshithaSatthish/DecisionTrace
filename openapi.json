@@ -1,0 +1,2306 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "DecisionTrace Backend",
+    "description": "Autonomous Decision & Commitment Guardian Backend",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Get Health",
+        "description": "Process liveness probe.",
+        "operationId": "get_health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Get Health Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ready": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Get Readiness",
+        "description": "Dependency readiness probe (Database, Redis, Qdrant).",
+        "operationId": "get_readiness_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Get Readiness Ready Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/omi/{opaque_token}": {
+      "post": {
+        "tags": [
+          "Omi Webhook"
+        ],
+        "summary": "Secure Omi completed memory ingestion webhook",
+        "description": "Ingest Omi memory event with verification, durable deduplication, and outbox commit.",
+        "operationId": "handle_omi_webhook_api_v1_webhooks_omi__opaque_token__post",
+        "parameters": [
+          {
+            "name": "opaque_token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Secret installation token",
+              "title": "Opaque Token"
+            },
+            "description": "Secret installation token"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OmiMemoryCreatedWebhook"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/omi/status": {
+      "get": {
+        "tags": [
+          "Integrations"
+        ],
+        "summary": "Get Omi Status",
+        "description": "Check Omi connection status for the authenticated user.",
+        "operationId": "get_omi_status_api_v1_integrations_omi_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OmiStatusResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/integrations/omi": {
+      "post": {
+        "tags": [
+          "Integrations"
+        ],
+        "summary": "Link Omi Integration",
+        "description": "Create or renew Omi integration token for authenticated user.",
+        "operationId": "link_omi_integration_api_v1_integrations_omi_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkOmiRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkOmiResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/conversations": {
+      "get": {
+        "tags": [
+          "Conversations"
+        ],
+        "summary": "List Conversations",
+        "description": "List paginated conversations for current authenticated user.",
+        "operationId": "list_conversations_api_v1_conversations_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/conversations/{conversation_id}": {
+      "get": {
+        "tags": [
+          "Conversations"
+        ],
+        "summary": "Get Conversation Detail",
+        "description": "Get conversation detail including raw segments and chunk references.",
+        "operationId": "get_conversation_detail_api_v1_conversations__conversation_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Conversation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationDetailRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/decisions": {
+      "get": {
+        "tags": [
+          "Decisions"
+        ],
+        "summary": "List Decisions",
+        "description": "List tracked decisions for current authenticated user.",
+        "operationId": "list_decisions_api_v1_decisions_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by status e.g. active",
+              "title": "Status"
+            },
+            "description": "Filter by status e.g. active"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/decisions/{decision_id}": {
+      "get": {
+        "tags": [
+          "Decisions"
+        ],
+        "summary": "Get Decision Detail",
+        "description": "Get decision details including evidence chunk links.",
+        "operationId": "get_decision_detail_api_v1_decisions__decision_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "decision_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Decision Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionDetailRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/findings": {
+      "get": {
+        "tags": [
+          "Findings"
+        ],
+        "summary": "List Findings",
+        "description": "List agent findings for the current authenticated user.",
+        "operationId": "list_findings_api_v1_findings_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by status e.g. pending_approval",
+              "title": "Status"
+            },
+            "description": "Filter by status e.g. pending_approval"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FindingListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/findings/{finding_id}": {
+      "get": {
+        "tags": [
+          "Findings"
+        ],
+        "summary": "Get Finding Detail",
+        "description": "Get finding detail and linked evidence chunks.",
+        "operationId": "get_finding_detail_api_v1_findings__finding_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "finding_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Finding Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FindingRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/approvals": {
+      "get": {
+        "tags": [
+          "Approvals"
+        ],
+        "summary": "List Approvals",
+        "description": "List approval requests for current user.",
+        "operationId": "list_approvals_api_v1_approvals_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by status e.g. pending",
+              "title": "Status"
+            },
+            "description": "Filter by status e.g. pending"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/approvals/{approval_id}/approve": {
+      "post": {
+        "tags": [
+          "Approvals"
+        ],
+        "summary": "Approve Request",
+        "description": "Human approval: executes atomic DB update with one-time execution key.",
+        "operationId": "approve_request_api_v1_approvals__approval_id__approve_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "approval_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Approval Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveActionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalExecutionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/approvals/{approval_id}/reject": {
+      "post": {
+        "tags": [
+          "Approvals"
+        ],
+        "summary": "Reject Request",
+        "description": "Human rejection: keeps decision untouched and logs audit trail.",
+        "operationId": "reject_request_api_v1_approvals__approval_id__reject_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "approval_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Approval Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectActionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalExecutionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/approvals/{approval_id}/clarify": {
+      "post": {
+        "tags": [
+          "Approvals"
+        ],
+        "summary": "Clarify Request",
+        "description": "Human clarification request: flags finding for further conversation.",
+        "operationId": "clarify_request_api_v1_approvals__approval_id__clarify_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "approval_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Approval Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClarifyActionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalExecutionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/overview": {
+      "get": {
+        "tags": [
+          "Activity & Dashboard"
+        ],
+        "summary": "Get Dashboard Overview",
+        "description": "Dashboard statistics for Akshay's Next.js UI.",
+        "operationId": "get_dashboard_overview_api_v1_overview_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OverviewResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/activity": {
+      "get": {
+        "tags": [
+          "Activity & Dashboard"
+        ],
+        "summary": "Get Activity Stream",
+        "description": "Paginated immutable audit activity trail for current user.",
+        "operationId": "get_activity_stream_api_v1_activity_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/jobs/{job_id}": {
+      "get": {
+        "tags": [
+          "Activity & Dashboard"
+        ],
+        "summary": "Get Job Status",
+        "description": "Fetch status and milestones for a background processing job.",
+        "operationId": "get_job_status_api_v1_jobs__job_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobStatusResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "summary": "Root",
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ActivityResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AuditEventRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "ActivityResponse"
+      },
+      "ApprovalExecutionResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "executed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Executed At"
+          },
+          "resulting_decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DecisionRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "executed_at",
+          "message"
+        ],
+        "title": "ApprovalExecutionResponse"
+      },
+      "ApprovalListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ApprovalRequestRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "ApprovalListResponse"
+      },
+      "ApprovalRequestRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "finding_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Finding Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "action_payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Action Payload"
+          },
+          "requester": {
+            "type": "string",
+            "title": "Requester"
+          },
+          "execution_key": {
+            "type": "string",
+            "title": "Execution Key"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "finding_id",
+          "status",
+          "action_payload",
+          "requester",
+          "execution_key",
+          "created_at"
+        ],
+        "title": "ApprovalRequestRead"
+      },
+      "ApproveActionRequest": {
+        "properties": {
+          "execution_key": {
+            "type": "string",
+            "title": "Execution Key"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "execution_key"
+        ],
+        "title": "ApproveActionRequest"
+      },
+      "AuditEventRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "actor_type": {
+            "type": "string",
+            "title": "Actor Type"
+          },
+          "actor_id": {
+            "type": "string",
+            "title": "Actor Id"
+          },
+          "entity_type": {
+            "type": "string",
+            "title": "Entity Type"
+          },
+          "entity_id": {
+            "type": "string",
+            "title": "Entity Id"
+          },
+          "before_state": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before State"
+          },
+          "after_state": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After State"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "action",
+          "actor_type",
+          "actor_id",
+          "entity_type",
+          "entity_id",
+          "timestamp"
+        ],
+        "title": "AuditEventRead"
+      },
+      "ClarifyActionRequest": {
+        "properties": {
+          "clarification_request": {
+            "type": "string",
+            "title": "Clarification Request"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clarification_request"
+        ],
+        "title": "ClarifyActionRequest"
+      },
+      "ConversationChunkRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "excerpt": {
+            "type": "string",
+            "title": "Excerpt"
+          },
+          "vector_point_id": {
+            "type": "string",
+            "title": "Vector Point Id"
+          },
+          "source_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Source Time"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "excerpt",
+          "vector_point_id",
+          "source_time"
+        ],
+        "title": "ConversationChunkRead"
+      },
+      "ConversationDetailRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "source_event_id": {
+            "type": "string",
+            "title": "Source Event Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "overview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overview"
+          },
+          "normalized_transcript": {
+            "type": "string",
+            "title": "Normalized Transcript"
+          },
+          "raw_segments": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Raw Segments"
+          },
+          "chunks": {
+            "items": {
+              "$ref": "#/components/schemas/ConversationChunkRead"
+            },
+            "type": "array",
+            "title": "Chunks",
+            "default": []
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "source_event_id",
+          "normalized_transcript",
+          "raw_segments",
+          "status",
+          "created_at"
+        ],
+        "title": "ConversationDetailRead"
+      },
+      "ConversationListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ConversationRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "ConversationListResponse"
+      },
+      "ConversationRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "source_event_id": {
+            "type": "string",
+            "title": "Source Event Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "overview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overview"
+          },
+          "transcript_preview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transcript Preview"
+          },
+          "source_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Source Time"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "source_event_id",
+          "source_time",
+          "created_at",
+          "status"
+        ],
+        "title": "ConversationRead"
+      },
+      "DecisionDetailRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "topic": {
+            "type": "string",
+            "title": "Topic"
+          },
+          "current_commitment": {
+            "type": "string",
+            "title": "Current Commitment"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Date"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "source_provenance": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Source Provenance",
+            "default": {}
+          },
+          "evidence_chunk_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence Chunk Ids",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "topic",
+          "current_commitment",
+          "state",
+          "version",
+          "updated_at",
+          "created_at"
+        ],
+        "title": "DecisionDetailRead"
+      },
+      "DecisionListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DecisionRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "DecisionListResponse"
+      },
+      "DecisionRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "topic": {
+            "type": "string",
+            "title": "Topic"
+          },
+          "current_commitment": {
+            "type": "string",
+            "title": "Current Commitment"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Date"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "topic",
+          "current_commitment",
+          "state",
+          "version",
+          "updated_at",
+          "created_at"
+        ],
+        "title": "DecisionRead"
+      },
+      "EvidenceItem": {
+        "properties": {
+          "chunk_id": {
+            "type": "string",
+            "title": "Chunk Id"
+          },
+          "excerpt": {
+            "type": "string",
+            "title": "Excerpt"
+          },
+          "conversation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Conversation Id"
+          },
+          "source_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Time"
+          }
+        },
+        "type": "object",
+        "required": [
+          "chunk_id",
+          "excerpt",
+          "conversation_id"
+        ],
+        "title": "EvidenceItem"
+      },
+      "FindingListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FindingRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "FindingListResponse"
+      },
+      "FindingRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "conversation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Conversation Id"
+          },
+          "classification": {
+            "type": "string",
+            "title": "Classification"
+          },
+          "topic_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic Key"
+          },
+          "previous_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Value"
+          },
+          "new_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Value"
+          },
+          "explanation": {
+            "type": "string",
+            "title": "Explanation"
+          },
+          "confidence": {
+            "type": "string",
+            "title": "Confidence"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceItem"
+            },
+            "type": "array",
+            "title": "Evidence",
+            "default": []
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "conversation_id",
+          "classification",
+          "explanation",
+          "confidence",
+          "status",
+          "created_at"
+        ],
+        "title": "FindingRead"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "JobStatusResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "conversation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Conversation Id"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "attempt_count": {
+            "type": "integer",
+            "title": "Attempt Count"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "milestones": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Milestones"
+          },
+          "queued_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queued At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "conversation_id",
+          "state",
+          "attempt_count",
+          "milestones"
+        ],
+        "title": "JobStatusResponse"
+      },
+      "LinkOmiRequest": {
+        "properties": {
+          "external_omi_uid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Omi Uid"
+          }
+        },
+        "type": "object",
+        "title": "LinkOmiRequest"
+      },
+      "LinkOmiResponse": {
+        "properties": {
+          "installation_id": {
+            "type": "string",
+            "title": "Installation Id"
+          },
+          "webhook_token": {
+            "type": "string",
+            "title": "Webhook Token"
+          },
+          "webhook_url": {
+            "type": "string",
+            "title": "Webhook Url"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "installation_id",
+          "webhook_token",
+          "webhook_url",
+          "message"
+        ],
+        "title": "LinkOmiResponse"
+      },
+      "OmiMemoryCreatedWebhook": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Unique source ID of memory/conversation from Omi"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "transcript_segments": {
+            "items": {
+              "$ref": "#/components/schemas/TranscriptSegment"
+            },
+            "type": "array",
+            "title": "Transcript Segments"
+          },
+          "structured": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StructuredMetadata"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "discarded": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discarded",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "OmiMemoryCreatedWebhook"
+      },
+      "OmiStatusResponse": {
+        "properties": {
+          "connected": {
+            "type": "boolean",
+            "title": "Connected"
+          },
+          "installation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Installation Id"
+          },
+          "external_omi_uid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Omi Uid"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "webhook_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Webhook Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "connected"
+        ],
+        "title": "OmiStatusResponse"
+      },
+      "OverviewResponse": {
+        "properties": {
+          "total_conversations": {
+            "type": "integer",
+            "title": "Total Conversations"
+          },
+          "active_decisions": {
+            "type": "integer",
+            "title": "Active Decisions"
+          },
+          "pending_approvals": {
+            "type": "integer",
+            "title": "Pending Approvals"
+          },
+          "recent_findings": {
+            "type": "integer",
+            "title": "Recent Findings"
+          },
+          "system_status": {
+            "type": "string",
+            "title": "System Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_conversations",
+          "active_decisions",
+          "pending_approvals",
+          "recent_findings",
+          "system_status"
+        ],
+        "title": "OverviewResponse"
+      },
+      "RejectActionRequest": {
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason",
+            "default": "Rejected by reviewer"
+          }
+        },
+        "type": "object",
+        "title": "RejectActionRequest"
+      },
+      "StructuredMetadata": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "overview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overview"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "action_items": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Action Items"
+          }
+        },
+        "type": "object",
+        "title": "StructuredMetadata"
+      },
+      "TranscriptSegment": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "speaker": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speaker",
+            "default": "SPEAKER_00"
+          },
+          "is_user": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is User",
+            "default": false
+          },
+          "start": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start",
+            "default": 0.0
+          },
+          "end": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End",
+            "default": 0.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "TranscriptSegment"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "WebhookResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "conversation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Conversation Id"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "conversation_id",
+          "message"
+        ],
+        "title": "WebhookResponse"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}
