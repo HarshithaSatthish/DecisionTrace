@@ -19,17 +19,74 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-      const res = await fetch(`${backendUrl}/approvals/${id}/action`, {
+      const action = body.action || 'approve';
+      let targetPath = '';
+      let targetPayload: Record<string, any> = {};
+
+      if (action === 'reject') {
+        targetPath = `${backendUrl}/approvals/${id}/reject`;
+        targetPayload = { reason: body.rationale || body.reason || 'Rejected by reviewer' };
+      } else if (action === 'clarify') {
+        targetPath = `${backendUrl}/approvals/${id}/clarify`;
+        targetPayload = {
+          clarification_request:
+            body.rationale || body.clarification_request || 'Clarification requested'
+        };
+      } else {
+        // Approve: get execution_key if not supplied
+        let execKey = body.execution_key || body.executionKey;
+        if (!execKey) {
+          try {
+            const detailRes = await fetch(`${backendUrl}/approvals/${id}`, {
+              headers: authResult.headers,
+              cache: 'no-store'
+            });
+            if (detailRes.ok) {
+              const detailData = await detailRes.json();
+              execKey = detailData.execution_key;
+            }
+          } catch {
+            // Non-fatal, try without or proceed
+          }
+        }
+        targetPath = `${backendUrl}/approvals/${id}/approve`;
+        targetPayload = {
+          execution_key: execKey || 'exec_key_auto',
+          note: body.rationale || body.note || 'Confirmed by human reviewer'
+        };
+      }
+
+      let res = await fetch(targetPath, {
         method: 'POST',
         headers: authResult.headers,
-        body: JSON.stringify(body),
+        body: JSON.stringify(targetPayload),
         signal: controller.signal
       });
+
+      // Backward compatibility fallback to /action if /approve or /reject returns 404
+      if (res.status === 404) {
+        res = await fetch(`${backendUrl}/approvals/${id}/action`, {
+          method: 'POST',
+          headers: authResult.headers,
+          body: JSON.stringify(body),
+          signal: controller.signal
+        });
+      }
+
       clearTimeout(timeoutId);
 
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        return NextResponse.json(data);
+        return NextResponse.json({
+          success: true,
+          approvalId: id,
+          status: data.status || 'approved',
+          executionSummary:
+            data.message ||
+            `Approval executed successfully with status '${data.status || 'approved'}'`,
+          resultingDecision: data.resulting_decision,
+          details: data
+        });
       }
 
       return NextResponse.json(

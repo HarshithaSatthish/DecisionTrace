@@ -4,6 +4,22 @@ import { verifyDecisionTraceAuth, isDevPreviewEnabled } from '@/lib/decision-tra
 
 export const dynamic = 'force-dynamic';
 
+interface RawCommitment {
+  id: string | number;
+  title?: string;
+  topic?: string;
+  task?: string;
+  current_commitment?: string;
+  owner?: string;
+  ownerAvatar?: string;
+  due_date?: string;
+  deadline?: string;
+  status?: 'backlog' | 'in_progress' | 'blocked' | 'completed';
+  state?: string;
+  priority?: 'low' | 'medium' | 'high' | 'critical';
+  evidence?: unknown[];
+}
+
 export async function GET(request: NextRequest) {
   const authResult = await verifyDecisionTraceAuth();
   if (!authResult.authenticated) {
@@ -15,12 +31,42 @@ export async function GET(request: NextRequest) {
 
   if (backendUrl) {
     try {
-      const res = await fetch(`${backendUrl}/commitments?${searchParams.toString()}`, {
+      let res = await fetch(`${backendUrl}/commitments?${searchParams.toString()}`, {
         headers: authResult.headers,
         cache: 'no-store'
-      });
-      if (res.ok) {
-        return NextResponse.json(await res.json());
+      }).catch(() => null);
+
+      if (!res || !res.ok) {
+        // Fallback to /decisions in Harshitha's architecture where decisions contain current_commitment
+        res = await fetch(`${backendUrl}/decisions?${searchParams.toString()}`, {
+          headers: authResult.headers,
+          cache: 'no-store'
+        }).catch(() => null);
+      }
+
+      if (res && res.ok) {
+        const raw = await res.json();
+        const items: RawCommitment[] = Array.isArray(raw) ? raw : (raw.items ?? []);
+        const mapped = items.map((d: RawCommitment) => {
+          const topicTitle = (d.topic || 'Commitment')
+            .replace(/_/g, ' ')
+            .replace(/\b\w/g, (c: string) => c.toUpperCase());
+          return {
+            id: String(d.id),
+            title: d.title || topicTitle,
+            task: d.task || d.current_commitment || topicTitle,
+            owner: d.owner || 'Unassigned',
+            ownerAvatar: d.ownerAvatar,
+            deadline: d.due_date || d.deadline || new Date().toISOString(),
+            status: d.status || (d.state === 'active' ? 'in_progress' : 'completed'),
+            priority: d.priority || 'high',
+            relatedDecisionId: String(d.id),
+            relatedDecisionTitle: topicTitle,
+            evidence: Array.isArray(d.evidence) ? d.evidence : [],
+            progressPercentage: d.state === 'active' ? 50 : 100
+          };
+        });
+        return NextResponse.json(mapped);
       }
     } catch {
       // Backend probe failed
