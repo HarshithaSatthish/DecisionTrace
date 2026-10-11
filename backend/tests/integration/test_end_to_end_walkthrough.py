@@ -148,6 +148,26 @@ def test_complete_end_to_end_walkthrough(
     assert dec_b_data["version"] == 2
     assert "Thursday 2 PM" in dec_b_data["current_commitment"]
 
+    # Repeated delivery of Conversation B returns 200 duplicate (no duplicate jobs/records)
+    resp_b_dup = client.post(f"/api/v1/webhooks/omi/{raw_token}", json=payload_b)
+    assert resp_b_dup.status_code == 200
+    assert resp_b_dup.json()["status"] == "duplicate"
+
+    # Repeated approval of Approval B returns 409 Conflict (no duplicate mutations)
+    resp_approve_b_dup = client.post(
+        f"/api/v1/approvals/{approval_b.id}/approve",
+        headers=headers,
+        json={"execution_key": approval_b.execution_key, "note": "Duplicate approval attempt"},
+    )
+    assert resp_approve_b_dup.status_code == 409
+
+    # Verify frontend can fetch the real finding by ID with evidence links
+    resp_finding_b = client.get(f"/api/v1/findings/{finding_b.id}", headers=headers)
+    assert resp_finding_b.status_code == 200
+    finding_b_api = resp_finding_b.json()
+    assert finding_b_api["classification"] == "superseding_change"
+    assert len(finding_b_api["evidence"]) >= 1
+
     # =========================================================================
     # STEP 3: Verify Overview Dashboard & Audit Trail
     # =========================================================================

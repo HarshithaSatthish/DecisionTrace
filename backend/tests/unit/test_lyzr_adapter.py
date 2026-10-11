@@ -169,3 +169,38 @@ async def test_lyzr_adapter_fails_visibly_when_live_api_errors_in_production(mon
     with pytest.raises(RuntimeError, match="Live Lyzr Agent call failed in production"):
         await adapter.analyze_conversation(payload)
 
+
+@pytest.mark.asyncio
+async def test_fabricated_evidence_ids_reject_misleading_finding():
+    adapter = LyzrAgentAdapter()
+    conv_id = uuid.uuid4()
+
+    payload = AgentInvocationPayload(
+        user_id="user_test_123",
+        conversation_id=conv_id,
+        new_transcript="We will reschedule the architecture review.",
+        new_evidence_ids=["chk_real_100"],
+        historical_evidence=[],
+        existing_decisions=[],
+    )
+
+    # Agent output contains ONLY fabricated evidence IDs
+    raw_agent_output = {
+        "classification": "superseding_change",
+        "topic_key": "architecture_review",
+        "evidence_chunk_ids": ["chk_fake_invented_999", "chk_fabricated_000"],
+        "explanation": "Claimed change based on unverified evidence.",
+        "confidence": "high",
+        "proposed_action": {"kind": "create_decision", "new_value": "Next Monday"},
+        "requires_human_approval": True,
+    }
+
+    valid_chunks = {"chk_real_100"}
+    sanitized = adapter._validate_and_sanitize(raw_agent_output, payload, valid_chunks)
+
+    # The finding must be rejected rather than silently faking an evidence attachment
+    assert sanitized.classification == "insufficient_evidence"
+    assert sanitized.proposed_action is None
+    assert sanitized.evidence_chunk_ids == []
+    assert "Rejected: Finding cited fabricated or unverified evidence IDs" in sanitized.explanation
+
