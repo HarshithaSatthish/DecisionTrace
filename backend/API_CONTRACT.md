@@ -340,6 +340,27 @@
 }
 ```
 
+### `GET /api/v1/approvals/{id}`
+- **Purpose**: Get detail of a specific approval request.
+- **Auth**: `Bearer <clerk_jwt>`
+- **Response `200 OK`**:
+```json
+{
+  "id": "appr_101",
+  "finding_id": "fnd_789",
+  "status": "pending",
+  "action_payload": {
+    "kind": "request_decision_update",
+    "topic": "prototype_review",
+    "new_value": "Thursday at 2 PM"
+  },
+  "requester": "agent",
+  "execution_key": "exec_key_a8d79f01e2",
+  "created_at": "2026-10-11T11:45:10Z"
+}
+```
+- **Response `404 Not Found`**: Request not found or belongs to another user.
+
 ### `POST /api/v1/approvals/{id}/approve`
 - **Purpose**: Human approves the finding. Executes the atomic DB mutation (creates/updates decision, creates task if requested, records audit log).
 - **Auth**: `Bearer <clerk_jwt>`

@@ -3,7 +3,7 @@
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, col, func, select
 
 from app.core.security import verify_clerk_token
@@ -50,6 +50,27 @@ def list_approvals(
 
     items = [ApprovalRequestRead.model_validate(r) for r in results]
     return ApprovalListResponse(items=items, total=total, limit=limit, offset=offset)
+
+
+@router.get("/{approval_id}", response_model=ApprovalRequestRead)
+def get_approval_detail(
+    approval_id: uuid.UUID,
+    claims: dict[str, Any] = Depends(verify_clerk_token),
+    session: Session = Depends(get_session),
+) -> ApprovalRequestRead:
+    """Get single approval request detail for current user."""
+    clerk_id = claims.get("sub", "")
+    user = get_or_create_user(session, clerk_id)
+
+    req = session.exec(
+        select(ApprovalRequest).where(
+            ApprovalRequest.id == approval_id, ApprovalRequest.user_id == user.id
+        )
+    ).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Approval request not found")
+
+    return ApprovalRequestRead.model_validate(req)
 
 
 @router.post("/{approval_id}/approve", response_model=ApprovalExecutionResponse)

@@ -42,10 +42,17 @@ class LyzrAgentAdapter:
         if self.api_key and self.manager_agent_id:
             try:
                 raw_result = await self._call_lyzr_api(payload)
-                validated = self._validate_and_sanitize(raw_result, payload, valid_chunk_ids)
-                return validated
+                return self._validate_and_sanitize(raw_result, payload, valid_chunk_ids)
             except Exception as e:
-                logger.error(f"Lyzr API error: {e}. Falling back to deterministic engine.")
+                logger.error(f"Lyzr API invocation failed: {e}")
+                if settings.APP_ENV.lower() == "production":
+                    raise RuntimeError(f"Live Lyzr Agent call failed in production: {e}") from e
+                logger.warning("Falling back to deterministic test evaluation engine for non-production environment.")
+
+        if settings.APP_ENV.lower() == "production":
+            raise RuntimeError(
+                "Lyzr integration unconfigured in production: LYZR_API_KEY and LYZR_MANAGER_AGENT_ID are required."
+            )
 
         # Deterministic verification engine (for test verification & offline local usage)
         return self._deterministic_analyze(payload, valid_chunk_ids)

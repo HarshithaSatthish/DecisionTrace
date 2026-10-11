@@ -1,5 +1,4 @@
-"""Application configuration using Pydantic Settings."""
-
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -43,8 +42,20 @@ class Settings(BaseSettings):
     LYZR_BASE_URL: str = "https://agent.api.lyzr.app/v2"
     LYZR_MANAGER_AGENT_ID: str | None = None
 
+    # FastEmbed Cache
+    FASTEMBED_CACHE_PATH: str | None = None
+
     # CORS
     CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
+
+    @model_validator(mode="after")
+    def validate_production_environment(self) -> "Settings":
+        if self.APP_ENV.lower() == "production":
+            if self.AUTH_DEV_MODE:
+                raise ValueError("Security violation: AUTH_DEV_MODE cannot be enabled in production environment.")
+            if not self.CLERK_ISSUER and not self.CLERK_JWKS_URL:
+                raise ValueError("Configuration error: CLERK_ISSUER or CLERK_JWKS_URL is required in production environment.")
+        return self
 
     @property
     def cors_origins_list(self) -> list[str]:

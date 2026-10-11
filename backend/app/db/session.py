@@ -8,16 +8,25 @@ from sqlmodel import Session, SQLModel
 
 from app.core.config import settings
 
-connect_args = {}
-if settings.DATABASE_URL.startswith("sqlite"):
-    connect_args["check_same_thread"] = False
 
-engine = create_engine(
-    settings.DATABASE_URL,
-    echo=False,
-    connect_args=connect_args,
-    pool_pre_ping=True,
-)
+def normalize_database_url(url: str) -> str:
+    """Normalize PostgreSQL connection URLs for SQLAlchemy + psycopg driver."""
+    if url.startswith("postgres://"):
+        return url.replace("postgres://", "postgresql+psycopg://", 1)
+    if url.startswith("postgresql://") and not url.startswith("postgresql+"):
+        return url.replace("postgresql://", "postgresql+psycopg://", 1)
+    return url
+
+
+engine_url = normalize_database_url(settings.DATABASE_URL)
+engine_kwargs = {"echo": False, "pool_pre_ping": True}
+if engine_url.startswith("sqlite"):
+    engine_kwargs["connect_args"] = {"check_same_thread": False}
+else:
+    engine_kwargs["pool_size"] = 10
+    engine_kwargs["max_overflow"] = 20
+
+engine = create_engine(engine_url, **engine_kwargs)
 
 
 def init_db():

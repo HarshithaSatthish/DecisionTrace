@@ -125,3 +125,47 @@ async def test_prompt_injection_neutralization():
     # The adapter must NOT execute delete or crash
     assert result.proposed_action is None or result.proposed_action.kind in payload.allowed_actions
     assert result.requires_human_approval is not False or result.proposed_action is None
+
+
+@pytest.mark.asyncio
+async def test_lyzr_adapter_fails_visibly_in_production_when_unconfigured(monkeypatch):
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "APP_ENV", "production")
+    adapter = LyzrAgentAdapter(api_key=None)
+
+    payload = AgentInvocationPayload(
+        user_id="user_test_prod",
+        conversation_id=uuid.uuid4(),
+        new_transcript="We will meet tomorrow at noon.",
+        new_evidence_ids=["chk_prod_01"],
+    )
+
+    with pytest.raises(RuntimeError, match="Lyzr integration unconfigured in production"):
+        await adapter.analyze_conversation(payload)
+
+
+@pytest.mark.asyncio
+async def test_lyzr_adapter_fails_visibly_when_live_api_errors_in_production(monkeypatch):
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "APP_ENV", "production")
+    monkeypatch.setattr(settings, "LYZR_MANAGER_AGENT_ID", "agent_prod_123")
+    adapter = LyzrAgentAdapter(api_key="live_key_xyz")
+
+    async def mock_failing_call(_payload):
+        raise httpx.RequestError("Lyzr Cloud Gateway Timeout 504")
+
+    import httpx
+    monkeypatch.setattr(adapter, "_call_lyzr_api", mock_failing_call)
+
+    payload = AgentInvocationPayload(
+        user_id="user_test_prod",
+        conversation_id=uuid.uuid4(),
+        new_transcript="Rescheduling sync to 4 PM.",
+        new_evidence_ids=["chk_prod_02"],
+    )
+
+    with pytest.raises(RuntimeError, match="Live Lyzr Agent call failed in production"):
+        await adapter.analyze_conversation(payload)
+
