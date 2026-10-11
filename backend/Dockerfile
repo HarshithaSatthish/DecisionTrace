@@ -1,5 +1,12 @@
 # syntax=docker/dockerfile:1
+
 FROM python:3.12-slim
+
+# Prevent Python from buffering logs or creating .pyc files
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PORT=8000 \
+    HOST=0.0.0.0
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -9,24 +16,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Install uv for rapid, deterministic dependency installation
+# Install uv package manager
 RUN pip install --no-cache-dir uv
 
-# Copy project definition
-COPY pyproject.toml README.md ./
-
-# Install project dependencies
-RUN uv pip install --system -e .
-
-# Copy application source code
+# Copy the full backend source before installation
 COPY . .
 
-# Set environment defaults
-ENV PORT=8000
-ENV HOST=0.0.0.0
-ENV PYTHONUNBUFFERED=1
+# Install Python dependencies and application
+RUN uv pip install --system .
 
+# Expose FastAPI port
 EXPOSE 8000
 
-# Default command starts FastAPI API
+# Start FastAPI (Railway supplies PORT dynamically)
 CMD ["python", "scripts/start_api.py"]
