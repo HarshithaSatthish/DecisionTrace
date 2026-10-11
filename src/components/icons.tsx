@@ -87,6 +87,10 @@ import {
   IconUsers,
   IconVideo,
   IconCrown,
+  IconScale,
+  IconShieldCheck,
+  IconGitCommit,
+  IconHistory,
   IconX
 } from '@tabler/icons-react';
 
@@ -219,5 +223,16 @@ export const Icons = {
   slash: IconSlash,
   calendar: IconCalendar,
   galleryVerticalEnd: IconStack2,
-  moreHorizontal: IconDots
+  moreHorizontal: IconDots,
+
+  // DecisionTrace
+  scale: IconScale,
+  shieldCheck: IconShieldCheck,
+  gitCommit: IconGitCommit,
+  history: IconHistory,
+  decisions: IconScale,
+  conflicts: IconAlertTriangle,
+  commitments: IconLayoutKanban,
+  approvals: IconShieldCheck,
+  activity: IconHistory
 };

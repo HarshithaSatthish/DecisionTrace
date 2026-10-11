@@ -1,8 +1,5 @@
-import { delay } from '@/constants/mock-api';
-import { BarGraph } from '@/features/overview/components/bar-graph';
+import { CommitmentVelocityChart } from '@/features/decision-trace/components/overview/commitment-velocity-chart';
 
-export default async function BarStats() {
-  await delay(1000);
-
-  return <BarGraph />;
+export default function BarStats() {
+  return <CommitmentVelocityChart />;
 }

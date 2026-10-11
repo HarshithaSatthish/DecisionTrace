@@ -1,7 +1,5 @@
-import { delay } from '@/constants/mock-api';
-import { RecentSales } from '@/features/overview/components/recent-sales';
+import { RecentGuardianActivity } from '@/features/decision-trace/components/overview/recent-guardian-activity';
 
-export default async function Sales() {
-  await delay(3000);
-  return <RecentSales />;
+export default function Sales() {
+  return <RecentGuardianActivity />;
 }

@@ -21,11 +21,11 @@ export const metadata: Metadata = {
     ? { metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL) }
     : {}),
   title: {
-    default: 'Shadcn Dashboard - Next.js Admin Dashboard Template',
-    template: '%s | Shadcn Dashboard'
+    default: 'DecisionTrace — Autonomous Decision & Commitment Guardian',
+    template: '%s | DecisionTrace'
   },
   description:
-    'Free, open source admin dashboard starter built with Next.js 16, shadcn/ui, Tailwind CSS, and TypeScript.',
+    'Autonomous Decision & Commitment Guardian — Track decisions, monitor commitments, detect conflicts and govern automated approvals.',
   openGraph: {
     title: 'Shadcn Dashboard - Next.js Admin Dashboard Template',
     description:
@@ -87,8 +87,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <NuqsAdapter>
             <ThemeProvider
               attribute='class'
-              defaultTheme='system'
-              enableSystem
+              defaultTheme='light'
+              enableSystem={false}
               disableTransitionOnChange
               enableColorScheme
             >

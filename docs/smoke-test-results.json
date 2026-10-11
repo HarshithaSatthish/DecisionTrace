@@ -1,0 +1,89 @@
+{
+  "executedAt": "2026-10-11T12:49:43.975Z",
+  "environment": "production-live-lyzr",
+  "agentIdsConfigured": {
+    "extractor": true,
+    "conflict": true,
+    "planner": true,
+    "manager": true
+  },
+  "totalTests": 6,
+  "passedCount": 6,
+  "failedCount": 0,
+  "allPassed": true,
+  "results": [
+    {
+      "id": 1,
+      "name": "Meeting Transcript Extraction",
+      "passed": true,
+      "durationMs": 16301,
+      "details": {
+        "decisionsCount": 1,
+        "commitmentsCount": 2,
+        "firstDecision": "Standardization on PostgreSQL",
+        "firstEvidenceQuote": "We decided to standardize on PostgreSQL for primary storage across all microservices.",
+        "firstCommitmentOwner": "Sarah",
+        "firstCommitmentDeadline": "2026-05-15"
+      }
+    },
+    {
+      "id": 2,
+      "name": "Contradiction Detection",
+      "passed": true,
+      "durationMs": 16042,
+      "details": {
+        "conflictsCount": 1,
+        "conflictTitle": "Migration to MongoDB vs. Standardization on PostgreSQL",
+        "severity": "high",
+        "explanation": "The decision to migrate all microservices to MongoDB directly contradicts the prior decision to standardize on PostgreSQL for primary storage across all microservices.",
+        "priorDecisionTitle": "Standardization on PostgreSQL",
+        "newerDecisionTitle": "Migration to MongoDB"
+      }
+    },
+    {
+      "id": 3,
+      "name": "Human Approval Gating for Remediations",
+      "passed": true,
+      "durationMs": 0,
+      "details": {
+        "approvalsCount": 1,
+        "firstApprovalTitle": "Resolve Migration Conflict",
+        "exactActionPreview": "Override the decision to migrate to MongoDB in favor of standardizing on PostgreSQL."
+      }
+    },
+    {
+      "id": 4,
+      "name": "Hallucination & Ambiguity Guard",
+      "passed": true,
+      "durationMs": 2936,
+      "details": {
+        "decisionsCount": 0,
+        "commitmentsCount": 0,
+        "ungroundedClaimsCount": 2
+      }
+    },
+    {
+      "id": 5,
+      "name": "Empty Input Early Exit",
+      "passed": true,
+      "durationMs": 1,
+      "details": {
+        "decisionsCount": 0,
+        "commitmentsCount": 0,
+        "durationMs": 1
+      }
+    },
+    {
+      "id": 6,
+      "name": "Duplicate Input Cache Hit",
+      "passed": true,
+      "durationMs": 0,
+      "details": {
+        "firstRunDurationMs": 16301,
+        "cachedRunDurationMs": 0,
+        "speedup": "16301x faster",
+        "decisionsCount": 1
+      }
+    }
+  ]
+}

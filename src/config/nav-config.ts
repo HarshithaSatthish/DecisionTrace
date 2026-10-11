@@ -35,16 +35,61 @@ import { NavGroup } from '@/types';
  */
 export const navGroups: NavGroup[] = [
   {
-    label: 'Overview',
+    label: 'Guardian Operations',
     items: [
       {
-        title: 'Dashboard',
+        title: 'Overview',
         url: '/dashboard/overview',
         icon: 'dashboard',
         isActive: false,
-        shortcut: ['d', 'd'],
+        shortcut: ['o', 'v'],
         items: []
       },
+      {
+        title: 'Decisions',
+        url: '/dashboard/decisions',
+        icon: 'decisions',
+        isActive: false,
+        shortcut: ['d', 'e'],
+        items: []
+      },
+      {
+        title: 'Commitments',
+        url: '/dashboard/commitments',
+        icon: 'commitments',
+        isActive: false,
+        shortcut: ['c', 'm'],
+        items: []
+      },
+      {
+        title: 'Conflicts',
+        url: '/dashboard/conflicts',
+        icon: 'conflicts',
+        isActive: false,
+        shortcut: ['c', 'f'],
+        items: []
+      },
+      {
+        title: 'Approvals',
+        url: '/dashboard/approvals',
+        icon: 'approvals',
+        isActive: false,
+        shortcut: ['a', 'p'],
+        items: []
+      },
+      {
+        title: 'Activity',
+        url: '/dashboard/activity',
+        icon: 'activity',
+        isActive: false,
+        shortcut: ['a', 'c'],
+        items: []
+      }
+    ]
+  },
+  {
+    label: 'Organization',
+    items: [
       {
         title: 'Workspaces',
         url: '/dashboard/workspaces',
@@ -53,104 +98,20 @@ export const navGroups: NavGroup[] = [
         items: []
       },
       {
-        title: 'Teams',
-        url: '/dashboard/workspaces/team',
-        icon: 'teams',
-        isActive: false,
-        items: [],
-        access: { requireOrg: true }
-      },
-      {
-        title: 'Product',
-        url: '/dashboard/product',
-        icon: 'product',
-        shortcut: ['p', 'p'],
+        title: 'Notifications',
+        url: '/dashboard/notifications',
+        icon: 'notification',
+        shortcut: ['n', 'n'],
         isActive: false,
         items: []
       },
       {
-        title: 'Users',
-        url: '/dashboard/users',
-        icon: 'teams',
-        shortcut: ['u', 'u'],
+        title: 'Profile',
+        url: '/dashboard/profile',
+        icon: 'profile',
+        shortcut: ['p', 'r'],
         isActive: false,
         items: []
-      },
-      {
-        title: 'Kanban',
-        url: '/dashboard/kanban',
-        icon: 'kanban',
-        shortcut: ['k', 'k'],
-        isActive: false,
-        items: []
-      },
-      {
-        title: 'Chat',
-        url: '/dashboard/chat',
-        icon: 'chat',
-        shortcut: ['c', 'c'],
-        isActive: false,
-        items: []
-      },
-      {
-        title: 'AI Chat',
-        url: '/dashboard/ai-chat',
-        icon: 'sparkles',
-        shortcut: ['a', 'i'],
-        isActive: false,
-        items: []
-      }
-    ]
-  },
-  {
-    label: '',
-    items: [
-      {
-        title: 'Pro',
-        url: '#',
-        icon: 'pro',
-        isActive: false,
-        items: [
-          {
-            title: 'Exclusive',
-            url: '/dashboard/exclusive',
-            icon: 'exclusive',
-            shortcut: ['e', 'e']
-          }
-        ]
-      },
-      {
-        title: 'Account',
-        url: '#',
-        icon: 'account',
-        isActive: true,
-        items: [
-          {
-            title: 'Profile',
-            url: '/dashboard/profile',
-            icon: 'profile',
-            shortcut: ['m', 'm']
-          },
-          {
-            title: 'Notifications',
-            url: '/dashboard/notifications',
-            icon: 'notification',
-            shortcut: ['n', 'n']
-          },
-          {
-            title: 'Billing',
-            url: '/dashboard/billing',
-            icon: 'billing',
-            shortcut: ['b', 'b'],
-            access: { requireOrg: true }
-          },
-          {
-            title: 'Login',
-            shortcut: ['l', 'l'],
-            url: '/',
-            icon: 'login'
-          }
-        ]
       }
     ]
   }
