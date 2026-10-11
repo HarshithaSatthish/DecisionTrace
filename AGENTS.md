@@ -123,7 +123,6 @@ The project follows a feature-based folder structure designed for scalability in
 │   ├── users/             # User management (React Query + nuqs)
 │   │   ├── api/           # Same pattern: types.ts → service.ts → queries.ts
 │   │   └── components/    # Listing, table components
-│   ├── react-query-demo/  # React Query showcase (Pokemon API)
 │   ├── kanban/            # Kanban board with dnd-kit
 │   ├── chat/              # Messaging UI (conversations, bubbles, composer)
 │   ├── ai-chat/           # Scripted useChat streaming demo
@@ -665,10 +664,6 @@ export const Icons = {
 | Theme           | `sun`, `moon`, `brightness`, `laptop`, `palette`                              |
 | Text formatting | `bold`, `italic`, `underline`, `text`                                         |
 | Data / Charts   | `trendingUp`, `trendingDown`, `eyeOff`, `adjustments`                         |
-
-### Icon Showcase Page
-
-Browse all available icons at `/dashboard/elements/icons` — a searchable grid of every icon in the registry.
 
 ### Why This Pattern?
 
