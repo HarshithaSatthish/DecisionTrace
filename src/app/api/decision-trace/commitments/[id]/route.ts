@@ -10,58 +10,35 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 
   const { id } = await params;
-  const body = await request.json().catch(() => ({}));
   const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
 
-  if (backendUrl) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-
-      const res = await fetch(`${backendUrl}/commitments/${id}`, {
-        method: 'PATCH',
-        headers: authResult.headers,
-        body: JSON.stringify(body),
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) {
-        return NextResponse.json(data);
-      }
-
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            data.detail || data.error || `FastAPI backend update failed with status ${res.status}`,
-          code: 'BACKEND_UPDATE_FAILED'
-        },
-        { status: res.status }
-      );
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Network error';
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Failed to connect to FastAPI backend: ${message}`,
-          code: 'BACKEND_UNREACHABLE'
-        },
-        { status: 502 }
-      );
-    }
+  if (!backendUrl) {
+    return NextResponse.json(
+      {
+        success: false,
+        error:
+          'Backend service unreachable: Commitment updates require FastAPI backend persistence at DECISIONTRACE_BACKEND_URL. Mutation aborted to prevent unpersisted state.',
+        code: 'BACKEND_OFFLINE',
+        commitmentId: id
+      },
+      { status: 503 }
+    );
   }
 
-  // Without a connected backend, mutations cannot be persisted.
+  // DecisionTrace Governance Policy:
+  // Direct arbitrary mutation of commitment/decision states without an approved Action Payload
+  // and execution key violates the Zero-Drift human-in-the-loop guarantee.
+  // The FastAPI backend intentionally exposes only GET /decisions and GET /decisions/{id},
+  // with mutations strictly routed through POST /api/v1/approvals/{id}/approve.
   return NextResponse.json(
     {
       success: false,
       error:
-        'Backend service unreachable: Commitment updates require FastAPI backend persistence at DECISIONTRACE_BACKEND_URL. Mutation aborted to prevent unpersisted state.',
-      code: 'BACKEND_OFFLINE',
-      commitmentId: id
+        'Direct unapproved commitment mutations are prevented by DecisionTrace governance policy. Changes must be proposed by an analysis agent and confirmed through the Approvals workflow with a valid execution key.',
+      code: 'UNAPPROVED_MUTATION_PREVENTED',
+      commitmentId: id,
+      governanceRule: 'ZERO_AUTONOMOUS_DRIFT_HUMAN_IN_THE_LOOP'
     },
-    { status: 503 }
+    { status: 405 }
   );
 }

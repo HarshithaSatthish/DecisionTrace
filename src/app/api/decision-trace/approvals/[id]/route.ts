@@ -21,7 +21,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
       const action = body.action || 'approve';
       let targetPath = '';
-      let targetPayload: Record<string, any> = {};
+      let targetPayload: Record<string, unknown> = {};
 
       if (action === 'reject') {
         targetPath = `${backendUrl}/approvals/${id}/reject`;
