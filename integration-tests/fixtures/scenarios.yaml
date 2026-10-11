@@ -1,0 +1,199 @@
+contract_status: proposed-unverified
+scenario_test_mode: "Local fixture-driven simulator only; not a test of live Lyzr or FastAPI behavior."
+scenarios:
+  - name: Meeting input → extracted decision
+    steps:
+      - id: extraction_fixture
+        method: GET
+        path: /__test/scenarios/meeting_to_decision
+        expected_status: 200
+        response_schema: ScenarioFixtureEnvelope
+        assertions:
+          - { path: simulated, op: is_true }
+          - { path: does_not_call_lyzr, op: is_true }
+          - { path: "fixture.observed.decisions[0].evidenceQuote", op: contains, value: decided to standardize on PostgreSQL }
+          - { path: fixture.observed.ungroundedClaims, op: equals, value: [] }
+    evidence_note: Deterministic test fixture checks transcript/evidence wiring only; it does not run the Lyzr extraction pipeline.
+
+  - name: Decision → commitment
+    use_bearer_env: true
+    steps:
+      - id: decisions
+        method: GET
+        path: /api/v1/decisions?search=Default%20Batch%20Export%20Retention
+        expected_status: 200
+        response_schema: DecisionPage
+        assertions:
+          - { path: "items[0].id", op: equals, value: DEC-104 }
+          - { path: "items[0].relatedCommitmentIds[0]", op: equals, value: COM-301 }
+      - id: commitments
+        method: GET
+        path: /api/v1/commitments?status=completed
+        expected_status: 200
+        response_schema: CommitmentList
+        assertions:
+          - { path: "[0].id", op: equals, value: COM-301 }
+          - { path: "[0].relatedDecisionId", op: equals, value: DEC-104 }
+      - id: update_commitment
+        method: PATCH
+        path: /api/v1/commitments/COM-302
+        mutation: true
+        json:
+          status: completed
+        expected_status: 200
+        response_schema: CommitmentPatch
+        assertions:
+          - { path: id, op: equals, value: COM-302 }
+          - { path: status, op: equals, value: completed }
+      - id: updated_commitment
+        method: GET
+        path: /api/v1/commitments?status=completed
+        expected_status: 200
+        response_schema: CommitmentList
+        assertions:
+          - { path: "[1].id", op: equals, value: COM-302 }
+          - { path: "[1].relatedDecisionId", op: equals, value: DEC-188 }
+    evidence_note: Links fictional decision/commitment records and verifies an in-memory status update; it does not create a commitment from a live decision.
+
+  - name: Changed decision → conflict
+    use_bearer_env: true
+    steps:
+      - id: conflicts
+        method: GET
+        path: /api/v1/conflicts
+        expected_status: 200
+        response_schema: ConflictList
+        assertions:
+          - { path: "[0].previousDecision.id", op: equals, value: DEC-104 }
+          - { path: "[0].newerDecision.id", op: equals, value: DEC-188 }
+          - { path: "[0].previousDecision.evidence.quote", op: exists }
+          - { path: "[0].newerDecision.evidence.quote", op: exists }
+    evidence_note: Checks both decision sides and their evidence; does not invoke conflict detection.
+
+  - name: Conflict → recommended action
+    steps:
+      - id: recommendation_fixture
+        method: GET
+        path: /__test/scenarios/conflict_recommendation
+        expected_status: 200
+        response_schema: ScenarioFixtureEnvelope
+        assertions:
+          - { path: does_not_call_lyzr, op: is_true }
+          - { path: fixture.recommended_action.requiresApproval, op: is_true }
+          - { path: fixture.observed.externalActionExecuted, op: equals, value: false }
+    evidence_note: Verifies a simulated recommendation asks for approval and has no external side effect; no real action planner is run.
+
+  - name: Action → approval required
+    use_bearer_env: true
+    steps:
+      - id: recommendation_fixture
+        method: GET
+        path: /__test/scenarios/conflict_recommendation
+        expected_status: 200
+        response_schema: ScenarioFixtureEnvelope
+        assertions:
+          - { path: fixture.observed.requiresApproval, op: is_true }
+          - { path: fixture.observed.approvalId, op: equals, value: APP-042 }
+      - id: approvals
+        method: GET
+        path: /api/v1/approvals?status=pending
+        expected_status: 200
+        response_schema: ApprovalList
+        assertions:
+          - { path: "[0].id", op: equals, value: APP-042 }
+          - { path: "[0].status", op: equals, value: pending }
+          - { path: "[0].exactActionPreview", op: contains, value: SIMULATED ONLY }
+    evidence_note: Confirms the proposed read schema and a pending fixture; it does not verify that an action planner created that approval.
+
+  - name: Approval rejection → no execution
+    steps:
+      - id: reject
+        method: POST
+        path: /api/v1/approvals/APP-042/action
+        mutation: true
+        json:
+          action: reject
+          rationale: Rejected in isolated simulator test.
+        expected_status: 200
+        assertions:
+          - { path: status, op: equals, value: rejected }
+          - { path: executed, op: equals, value: false }
+          - { path: executionSummary, op: contains, value: SIMULATED ONLY }
+      - id: state
+        method: GET
+        path: /__test/state
+        expected_status: 200
+        assertions:
+          - { path: simulated_approval_action_count, op: equals, value: 1 }
+          - { path: external_side_effects_count, op: equals, value: 0 }
+    real_blocker: Rejection response shape and behavior are not specified by the proposed API contract; this pass only tests the simulator's explicit no-side-effect policy.
+
+  - name: Backend unavailable → graceful error
+    steps:
+      - id: unavailable
+        method: GET
+        path: /api/v1/health
+        headers:
+          X-Test-Fault: backend-unavailable
+        expected_status: 503
+        response_schema: ErrorEnvelope
+        assertions:
+          - { path: code, op: equals, value: BACKEND_UNAVAILABLE }
+          - { path: detail, op: contains, value: No backend }
+    real_blocker: Fault injection is simulator-only; no backend failure was caused or requested.
+
+  - name: Unauthorized request → rejection
+    steps:
+      - id: unauthorized
+        method: GET
+        path: /api/v1/metrics
+        no_auth: true
+        expected_status: 401
+        response_schema: ErrorEnvelope
+        assertions:
+          - { path: code, op: equals, value: UNAUTHORIZED }
+    real_blocker: The simulator uses a documented test-only fake token; FastAPI authentication status/body is not confirmed against Person 1's service.
+
+  - name: Duplicate request → safe behavior
+    steps:
+      - id: first_approval
+        method: POST
+        path: /api/v1/approvals/APP-042/action
+        mutation: true
+        json:
+          action: approve
+          rationale: Duplicate request simulator fixture.
+        expected_status: 200
+        assertions:
+          - { path: executionSummary, op: contains, value: SIMULATED ONLY }
+      - id: repeated_approval
+        method: POST
+        path: /api/v1/approvals/APP-042/action
+        mutation: true
+        json:
+          action: approve
+          rationale: Duplicate request simulator fixture.
+        expected_status: 200
+      - id: state
+        method: GET
+        path: /__test/state
+        expected_status: 200
+        assertions:
+          - { path: simulated_approval_action_count, op: equals, value: 1 }
+          - { path: simulated_duplicate_request_count, op: equals, value: 1 }
+          - { path: external_side_effects_count, op: equals, value: 0 }
+    real_blocker: Idempotency keys and duplicate semantics are absent from the proposed API contract; this is a simulator policy only.
+
+  - name: Missing evidence → uncertainty flag
+    steps:
+      - id: uncertainty_fixture
+        method: GET
+        path: /__test/scenarios/missing_evidence
+        expected_status: 200
+        response_schema: ScenarioFixtureEnvelope
+        assertions:
+          - { path: does_not_call_lyzr, op: is_true }
+          - { path: fixture.observed.decisions, op: equals, value: [] }
+          - { path: "fixture.observed.ungroundedClaims[0]", op: equals, value: Ambiguous proposal without consensus }
+          - { path: fixture.observed.commitmentDeadlineUncertain, op: is_true }
+    evidence_note: Encodes the Lyzr-source uncertainty expectations as a local fixture assertion; this does not execute the Lyzr tests or infer live behavior.

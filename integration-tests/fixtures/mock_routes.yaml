@@ -1,0 +1,29 @@
+contract_status: proposed-unverified
+contract_source: docs/backend-integration-contract.md
+backend_base_path: /api/v1
+test_auth:
+  mode: simulator-only static bearer token
+  token: fixture-test-token
+  user_id: user-fixture-001
+  org_id: org-fixture-001
+notice: >-
+  These routes follow the proposed frontend contract. They have not been
+  confirmed against Person 1's FastAPI implementation. Mutations affect only
+  isolated in-memory simulator state.
+real_backend_blockers:
+  - POST /api/v1/approvals/{id}/action rejection response is not specified.
+  - Duplicate-request/idempotency semantics are not specified.
+  - Meeting analysis and action planning are Lyzr/frontend flows, not FastAPI endpoints in this contract.
+  - Uncertainty from missing evidence is not specified by a FastAPI endpoint or response schema.
+routes:
+  - { method: GET, path: /api/v1/health, auth: false }
+  - { method: GET, path: /api/v1/metrics, auth: true }
+  - { method: GET, path: /api/v1/decisions, auth: true }
+  - { method: GET, path: "/api/v1/decisions/{id}", auth: true }
+  - { method: GET, path: /api/v1/commitments, auth: true }
+  - { method: PATCH, path: "/api/v1/commitments/{id}", auth: true }
+  - { method: GET, path: /api/v1/conflicts, auth: true }
+  - { method: POST, path: "/api/v1/conflicts/{id}/resolve", auth: true }
+  - { method: GET, path: /api/v1/approvals, auth: true }
+  - { method: POST, path: "/api/v1/approvals/{id}/action", auth: true }
+  - { method: GET, path: /api/v1/activity, auth: true }

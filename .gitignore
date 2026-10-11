@@ -49,3 +49,9 @@ next-env.d.ts
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+# Python integration test artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+/integration-tests/reports/
