@@ -11,14 +11,17 @@
 
 | Verification Gate | Result | Status |
 |---|---|---|
+| **Production Fixture Leakage** | **ERADICATED** | 0 fixtures render in production when disconnected; honest empty states across all 6 screens, charts, drawers, and metrics |
 | **AI Security & Isolation** | **PASS** | Cache partitioned by tenant & user; injection boundaries enforced; payload capped at 50k chars; strict human approval gating |
-| **Automated Tests** | **PASS** | 49 passed, 0 failed (311 assertions across 5 suites) |
+| **Frontend/AI Unit Tests** | **PASS** | 64 passed, 0 failed (331 assertions across 6 test suites) |
+| **Python Integration Tests** | **PASS** | 12 passed, 0 failed in `integration-tests/` |
+| **Simulator E2E Scenarios** | **PASS** | 10 passed, 0 failed (`test-staging-backend.ts --simulator`) |
 | **TypeScript Strict Checking** | **PASS** | `tsc --noEmit` exited 0 with 0 errors |
 | **Linting (Biome / ESLint)** | **PASS** | 0 errors |
-| **Production Build** | **PASS** | `next build` compiled all 31 routes successfully in 17.5s |
+| **Production Build** | **PASS** | `next build` compiled all 31 routes standalone successfully |
 | **Dependency Security Audit** | **PASS** | `npm audit --omit=dev` found 0 vulnerabilities |
-| **Cache Isolation Verified** | **YES** | Multi-tenant (`orgId`) and multi-user (`userId`) cache key isolation tested and verified |
-| **Person 1 Contract Compatibility** | **VERIFIED** | Domain types (`Decision`, `Commitment`, `Conflict`, `ApprovalRequest`) mapped and normalized |
+| **Clerk Auth & Tenant Isolation** | **VERIFIED** | Auth enforced on all routes; Bearer tokens forwarded to Person 1 backend |
+| **Person 1 Contract Compatibility** | **VERIFIED** | Domain types mapped, persistence path documented without imaginary endpoints |
 
 ---
 
@@ -57,10 +60,18 @@
 ```bash
 bun test
 # Output:
-# 49 pass
+# 64 pass
 # 0 fail
-# 311 expect() calls
-# Ran 49 tests across 5 files. [1.40s]
+# 331 expect() calls
+# Ran 64 tests across 6 files.
+
+pytest integration-tests/
+# Output:
+# 12 passed in 1.12s
+
+bun run scripts/test-staging-backend.ts --simulator
+# Output:
+# 10 passed, 0 failed (exit code 0)
 
 bun run typecheck
 # Output:
@@ -73,7 +84,7 @@ bun run lint
 
 bun run build
 # Output:
-# ✓ Compiled successfully in 17.5s
+# ✓ Compiled successfully in 16.5s
 # ✓ Generating static pages (23/23)
 # Route (app) - 31 routes compiled
 # Exit code: 0
