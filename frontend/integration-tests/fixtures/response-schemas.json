@@ -1,0 +1,238 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Evidence": {
+      "type": "object",
+      "required": ["id", "sourceType", "sourceTitle", "speakerOrAuthor", "timestamp", "quote"],
+      "properties": {
+        "id": {"type": "string"},
+        "sourceType": {"enum": ["slack", "teams", "meeting", "document", "email"]},
+        "sourceTitle": {"type": "string"},
+        "channelOrLocation": {"type": "string"},
+        "speakerOrAuthor": {"type": "string"},
+        "timestamp": {"type": "string"},
+        "quote": {"type": "string"},
+        "messageId": {"type": "string"},
+        "url": {"type": "string"},
+        "vectorSimilarity": {"type": "number", "minimum": 0, "maximum": 1}
+      },
+      "additionalProperties": true
+    },
+    "Decision": {
+      "type": "object",
+      "required": ["id", "title", "summary", "whatWasDecided", "participants", "createdAt", "updatedAt", "status", "sourceConversation", "evidence", "confidence", "confidenceLevel", "relatedCommitmentIds", "category", "impactLevel"],
+      "properties": {
+        "id": {"type": "string"},
+        "title": {"type": "string"},
+        "summary": {"type": "string"},
+        "whatWasDecided": {"type": "string"},
+        "participants": {"type": "array", "items": {"type": "string"}},
+        "createdAt": {"type": "string"},
+        "updatedAt": {"type": "string"},
+        "status": {"enum": ["active", "superseded", "under_review", "deprecated"]},
+        "sourceConversation": {
+          "type": "object",
+          "required": ["id", "title", "channel", "timestamp"],
+          "properties": {
+            "id": {"type": "string"},
+            "title": {"type": "string"},
+            "channel": {"type": "string"},
+            "timestamp": {"type": "string"},
+            "url": {"type": "string"}
+          },
+          "additionalProperties": true
+        },
+        "evidence": {"type": "array", "items": {"$ref": "#/$defs/Evidence"}},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 100},
+        "confidenceLevel": {"enum": ["high", "med", "low"]},
+        "relatedCommitmentIds": {"type": "array", "items": {"type": "string"}},
+        "category": {"type": "string"},
+        "impactLevel": {"enum": ["low", "medium", "high", "critical"]}
+      },
+      "additionalProperties": true
+    },
+    "DecisionPage": {
+      "type": "object",
+      "required": ["total", "page", "limit", "items"],
+      "properties": {
+        "total": {"type": "integer", "minimum": 0},
+        "page": {"type": "integer", "minimum": 1},
+        "limit": {"type": "integer", "minimum": 1},
+        "items": {"type": "array", "items": {"$ref": "#/$defs/Decision"}}
+      },
+      "additionalProperties": true
+    },
+    "Commitment": {
+      "type": "object",
+      "required": ["id", "title", "task", "owner", "deadline", "status", "priority", "relatedDecisionId", "relatedDecisionTitle", "evidence"],
+      "properties": {
+        "id": {"type": "string"},
+        "title": {"type": "string"},
+        "task": {"type": "string"},
+        "owner": {"type": "string"},
+        "ownerAvatar": {"type": "string"},
+        "deadline": {"type": "string"},
+        "status": {"enum": ["backlog", "in_progress", "blocked", "completed"]},
+        "priority": {"enum": ["low", "medium", "high", "critical"]},
+        "relatedDecisionId": {"type": "string"},
+        "relatedDecisionTitle": {"type": "string"},
+        "evidence": {"type": "array", "items": {"$ref": "#/$defs/Evidence"}},
+        "progressPercentage": {"type": "number", "minimum": 0, "maximum": 100},
+        "blockerNotes": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "CommitmentList": {"type": "array", "items": {"$ref": "#/$defs/Commitment"}},
+    "CommitmentPatch": {
+      "type": "object",
+      "required": ["id", "status", "updatedAt"],
+      "properties": {
+        "id": {"type": "string"},
+        "status": {"enum": ["backlog", "in_progress", "blocked", "completed"]},
+        "updatedAt": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "ConflictSide": {
+      "type": "object",
+      "required": ["id", "title", "timestamp", "decisionText", "source", "evidence"],
+      "properties": {
+        "id": {"type": "string"},
+        "title": {"type": "string"},
+        "timestamp": {"type": "string"},
+        "decisionText": {"type": "string"},
+        "source": {"type": "string"},
+        "evidence": {"$ref": "#/$defs/Evidence"}
+      },
+      "additionalProperties": true
+    },
+    "Conflict": {
+      "type": "object",
+      "required": ["id", "title", "severity", "explanation", "status", "detectedAt", "previousDecision", "newerDecision"],
+      "properties": {
+        "id": {"type": "string"},
+        "title": {"type": "string"},
+        "severity": {"enum": ["low", "medium", "high", "critical"]},
+        "explanation": {"type": "string"},
+        "status": {"enum": ["unresolved", "resolved", "escalated", "dismissed"]},
+        "detectedAt": {"type": "string"},
+        "resolvedAt": {"type": "string"},
+        "resolutionNotes": {"type": "string"},
+        "previousDecision": {"$ref": "#/$defs/ConflictSide"},
+        "newerDecision": {"$ref": "#/$defs/ConflictSide"}
+      },
+      "additionalProperties": true
+    },
+    "ConflictList": {"type": "array", "items": {"$ref": "#/$defs/Conflict"}},
+    "ConflictResolution": {
+      "type": "object",
+      "required": ["success", "conflictId", "status", "resolvedAt", "message"],
+      "properties": {
+        "success": {"type": "boolean"},
+        "conflictId": {"type": "string"},
+        "status": {"enum": ["resolved", "escalated", "dismissed"]},
+        "resolvedAt": {"type": "string"},
+        "message": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "Approval": {
+      "type": "object",
+      "required": ["id", "title", "description", "actionType", "proposedBy", "requestedAt", "status", "impactLevel", "exactActionPreview", "targetEntityId", "targetEntityType", "evidence"],
+      "properties": {
+        "id": {"type": "string"},
+        "title": {"type": "string"},
+        "description": {"type": "string"},
+        "actionType": {"enum": ["supersede_decision", "reassign_commitment", "override_conflict", "policy_exception", "pipeline_execution"]},
+        "proposedBy": {"type": "string"},
+        "requestedAt": {"type": "string"},
+        "status": {"enum": ["pending", "approved", "rejected"]},
+        "impactLevel": {"enum": ["low", "medium", "high", "critical"]},
+        "exactActionPreview": {"type": "string"},
+        "targetEntityId": {"type": "string"},
+        "targetEntityType": {"enum": ["decision", "commitment", "conflict"]},
+        "evidence": {"type": "array", "items": {"$ref": "#/$defs/Evidence"}},
+        "reviewedBy": {"type": "string"},
+        "reviewedAt": {"type": "string"},
+        "reviewReason": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "ApprovalList": {"type": "array", "items": {"$ref": "#/$defs/Approval"}},
+    "ApprovalAction": {
+      "type": "object",
+      "required": ["success", "approvalId", "status", "executionSummary"],
+      "properties": {
+        "success": {"type": "boolean"},
+        "approvalId": {"type": "string"},
+        "status": {"type": "string"},
+        "executedAt": {"type": "string"},
+        "executionSummary": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "Activity": {
+      "type": "object",
+      "required": ["id", "type", "title", "description", "timestamp"],
+      "properties": {
+        "id": {"type": "string"},
+        "type": {"enum": ["conversation_processed", "decision_extracted", "conflict_detected", "approval_requested", "approval_executed", "commitment_updated"]},
+        "title": {"type": "string"},
+        "description": {"type": "string"},
+        "timestamp": {"type": "string"},
+        "actor": {"type": "string"},
+        "entityId": {"type": "string"},
+        "entityType": {"enum": ["decision", "commitment", "conflict", "approval", "conversation"]},
+        "evidence": {"type": "array", "items": {"$ref": "#/$defs/Evidence"}},
+        "statusBadge": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "ActivityList": {"type": "array", "items": {"$ref": "#/$defs/Activity"}},
+    "Metrics": {
+      "type": "object",
+      "required": ["activeDecisionsCount", "openCommitmentsCount", "detectedConflictsCount", "pendingApprovalsCount", "decisionTrend", "attentionItems", "recentActivity"],
+      "properties": {
+        "activeDecisionsCount": {"type": "integer", "minimum": 0},
+        "openCommitmentsCount": {"type": "integer", "minimum": 0},
+        "detectedConflictsCount": {"type": "integer", "minimum": 0},
+        "pendingApprovalsCount": {"type": "integer", "minimum": 0},
+        "decisionTrend": {"type": "array", "items": {"type": "object", "required": ["period", "decisions", "commitments"], "properties": {"period": {"type": "string"}, "decisions": {"type": "integer"}, "commitments": {"type": "integer"}}}},
+        "attentionItems": {"type": "array", "items": {"type": "object", "required": ["id", "type", "title", "severity", "actionUrl", "time"], "properties": {"id": {"type": "string"}, "type": {"enum": ["conflict", "approval", "commitment"]}, "title": {"type": "string"}, "severity": {"enum": ["low", "medium", "high", "critical"]}, "actionUrl": {"type": "string"}, "time": {"type": "string"}}}},
+        "recentActivity": {"type": "array", "items": {"$ref": "#/$defs/Activity"}}
+      },
+      "additionalProperties": true
+    },
+    "Health": {
+      "type": "object",
+      "required": ["status", "agent", "vector_db", "timestamp"],
+      "properties": {
+        "status": {"type": "string"},
+        "agent": {"type": "string"},
+        "vector_db": {"type": "string"},
+        "timestamp": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "ErrorEnvelope": {
+      "type": "object",
+      "properties": {
+        "detail": {"type": "string"},
+        "code": {"type": "string"}
+      },
+      "required": ["detail", "code"],
+      "additionalProperties": true
+    },
+    "ScenarioFixtureEnvelope": {
+      "type": "object",
+      "required": ["scenario", "simulated", "does_not_call_lyzr", "fixture"],
+      "properties": {
+        "scenario": {"type": "string"},
+        "simulated": {"const": true},
+        "does_not_call_lyzr": {"const": true},
+        "fixture": {"type": "object"}
+      },
+      "additionalProperties": true
+    }
+  }
+}

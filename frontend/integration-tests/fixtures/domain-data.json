@@ -1,0 +1,317 @@
+{
+  "fictional_test_records": true,
+  "source": "DecisionTrace frontend development-preview fixtures supplied by the user",
+  "decisions": [
+    {
+      "id": "DEC-104",
+      "title": "Default Batch Export Retention Window (90 Days)",
+      "summary": "Standardized lifecycle policy for analytics export data.",
+      "whatWasDecided": "All automated batch exports and data lake raw partitions shall be stored under a 90-day cold-tier retention lifecycle rule before automated archival.",
+      "participants": ["Sarah Chen", "Marcus Rivera", "Alex Turner"],
+      "createdAt": "2026-03-15T14:30:00Z",
+      "updatedAt": "2026-03-15T14:30:00Z",
+      "status": "superseded",
+      "sourceConversation": {
+        "id": "conv-slack-8821",
+        "title": "Infra Storage Sync & Cost Architecture",
+        "channel": "#infra-core",
+        "timestamp": "2026-03-15T14:15:00Z"
+      },
+      "evidence": [
+        {
+          "id": "ev-104-1",
+          "sourceType": "slack",
+          "sourceTitle": "#infra-core Thread 8821",
+          "channelOrLocation": "#infra-core",
+          "speakerOrAuthor": "Marcus Rivera",
+          "timestamp": "2026-03-15T14:22:10Z",
+          "quote": "Let us standardize cold storage lifecycle to 90 days for all raw parquet batches to balance cost against backfill needs.",
+          "vectorSimilarity": 0.96
+        }
+      ],
+      "confidence": 96,
+      "confidenceLevel": "high",
+      "relatedCommitmentIds": ["COM-301"],
+      "category": "Infrastructure & Storage",
+      "impactLevel": "medium"
+    },
+    {
+      "id": "DEC-188",
+      "title": "GDPR Article 17 Mandate: 30-Day Export Auto-Purge",
+      "summary": "Strict regulatory data minimization policy for user exports.",
+      "whatWasDecided": "All export files containing user-identifiable data, audit transcripts, or customer telemetry must be automatically purged within 30 days maximum.",
+      "participants": ["Elena Rostova", "Sarah Chen", "Jordan Kim"],
+      "createdAt": "2026-04-07T11:00:00Z",
+      "updatedAt": "2026-04-07T11:00:00Z",
+      "status": "under_review",
+      "sourceConversation": {
+        "id": "conv-meet-409",
+        "title": "Q2 Compliance & Legal Security Sign-off",
+        "channel": "Executive Security Review",
+        "timestamp": "2026-04-07T10:30:00Z"
+      },
+      "evidence": [
+        {
+          "id": "ev-188-1",
+          "sourceType": "meeting",
+          "sourceTitle": "Q2 Compliance & Legal Security Sign-off",
+          "speakerOrAuthor": "Elena Rostova",
+          "timestamp": "2026-04-07T10:45:18Z",
+          "quote": "Customer PII export lifecycle cannot exceed 30 days under the updated GDPR Article 17 interpretation without exposing us to significant regulatory liability.",
+          "vectorSimilarity": 0.98
+        }
+      ],
+      "confidence": 94,
+      "confidenceLevel": "high",
+      "relatedCommitmentIds": ["COM-302"],
+      "category": "Compliance & Security",
+      "impactLevel": "critical"
+    },
+    {
+      "id": "DEC-205",
+      "title": "Production Database Connection Pooling Limit (Max 120)",
+      "summary": "Connection pool headroom adjustment for distributed container replicas.",
+      "whatWasDecided": "PgBouncer max client connections configured to 120 per replica with statement-level pooling and 500ms connection timeout.",
+      "participants": ["Alex Turner", "Marcus Rivera"],
+      "createdAt": "2026-04-02T16:10:00Z",
+      "updatedAt": "2026-04-02T16:10:00Z",
+      "status": "active",
+      "sourceConversation": {
+        "id": "conv-slack-9904",
+        "title": "DB Performance Degradation Post-Mortem",
+        "channel": "#eng-database",
+        "timestamp": "2026-04-02T15:40:00Z"
+      },
+      "evidence": [
+        {
+          "id": "ev-205-1",
+          "sourceType": "slack",
+          "sourceTitle": "#eng-database Channel Discussion",
+          "speakerOrAuthor": "Alex Turner",
+          "timestamp": "2026-04-02T16:05:30Z",
+          "quote": "Increasing PgBouncer pool ceiling to 120 per container handled the synthetic load spike without starving master socket handles.",
+          "vectorSimilarity": 0.93
+        }
+      ],
+      "confidence": 91,
+      "confidenceLevel": "high",
+      "relatedCommitmentIds": ["COM-303"],
+      "category": "Database Architecture",
+      "impactLevel": "high"
+    }
+  ],
+  "commitments": [
+    {
+      "id": "COM-301",
+      "title": "Update S3 bucket lifecycle configurations to 90 days",
+      "task": "Deploy Terraform module updating lifecycle policies for staging and production analytics buckets.",
+      "owner": "Marcus Rivera",
+      "ownerAvatar": "MR",
+      "deadline": "2026-04-14",
+      "status": "completed",
+      "priority": "medium",
+      "relatedDecisionId": "DEC-104",
+      "relatedDecisionTitle": "Default Batch Export Retention Window (90 Days)",
+      "evidence": [
+        {
+          "id": "ev-com-301",
+          "sourceType": "slack",
+          "sourceTitle": "#infra-core",
+          "speakerOrAuthor": "Marcus Rivera",
+          "timestamp": "2026-03-15T14:35:00Z",
+          "quote": "I will push the Terraform PR to adjust the bucket lifecycle rule by Tuesday."
+        }
+      ],
+      "progressPercentage": 100
+    },
+    {
+      "id": "COM-302",
+      "title": "Implement automated 30-day purge worker for GDPR export compliance",
+      "task": "Write and schedule the worker that deletes customer export ZIPs older than 30 days.",
+      "owner": "Sarah Chen",
+      "ownerAvatar": "SC",
+      "deadline": "2026-04-18",
+      "status": "in_progress",
+      "priority": "critical",
+      "relatedDecisionId": "DEC-188",
+      "relatedDecisionTitle": "GDPR Article 17 Mandate: 30-Day Export Auto-Purge",
+      "evidence": [
+        {
+          "id": "ev-com-302",
+          "sourceType": "meeting",
+          "sourceTitle": "Compliance Review",
+          "speakerOrAuthor": "Sarah Chen",
+          "timestamp": "2026-04-07T10:55:00Z",
+          "quote": "I take ownership of shipping the automated purge job before next audit checkpoint."
+        }
+      ],
+      "progressPercentage": 65
+    },
+    {
+      "id": "COM-303",
+      "title": "Benchmark PgBouncer connection ceiling with 120 sockets",
+      "task": "Run synthetic load tests to verify connection-pool memory overhead.",
+      "owner": "Alex Turner",
+      "ownerAvatar": "AT",
+      "deadline": "2026-04-16",
+      "status": "in_progress",
+      "priority": "high",
+      "relatedDecisionId": "DEC-205",
+      "relatedDecisionTitle": "Production Database Connection Pooling Limit (Max 120)",
+      "evidence": [
+        {
+          "id": "ev-com-303",
+          "sourceType": "slack",
+          "sourceTitle": "#eng-database",
+          "speakerOrAuthor": "Alex Turner",
+          "timestamp": "2026-04-02T16:12:00Z",
+          "quote": "I will run the synthetic load tests tomorrow morning to confirm socket memory overhead."
+        }
+      ],
+      "progressPercentage": 40
+    }
+  ],
+  "conflicts": [
+    {
+      "id": "CONF-001",
+      "title": "Contradictory Export Data Retention: 90 Days vs 30 Days",
+      "severity": "critical",
+      "explanation": "The older 90-day export retention decision conflicts with the newer 30-day GDPR export deletion decision.",
+      "status": "unresolved",
+      "detectedAt": "2026-04-08T09:15:00Z",
+      "previousDecision": {
+        "id": "DEC-104",
+        "title": "Default Batch Export Retention Window (90 Days)",
+        "timestamp": "2026-03-15T14:30:00Z",
+        "decisionText": "Retain analytics export archives and raw parquet dumps for 90 days.",
+        "source": "#infra-core Slack Thread 8821",
+        "evidence": {
+          "id": "ev-conf-old",
+          "sourceType": "slack",
+          "sourceTitle": "#infra-core Slack Thread",
+          "speakerOrAuthor": "Marcus Rivera",
+          "timestamp": "2026-03-15T14:22:10Z",
+          "quote": "Standardize cold storage lifecycle to 90 days for all raw parquet batches to balance cost against backfill needs.",
+          "vectorSimilarity": 0.96
+        }
+      },
+      "newerDecision": {
+        "id": "DEC-188",
+        "title": "GDPR Article 17 Mandate: 30-Day Export Auto-Purge",
+        "timestamp": "2026-04-07T11:00:00Z",
+        "decisionText": "Erase export files containing user-identifiable data after 30 days.",
+        "source": "Q2 Compliance & Legal Security Sign-off",
+        "evidence": {
+          "id": "ev-conf-new",
+          "sourceType": "meeting",
+          "sourceTitle": "Executive Security Review",
+          "speakerOrAuthor": "Elena Rostova",
+          "timestamp": "2026-04-07T10:45:18Z",
+          "quote": "Customer PII export lifecycle cannot exceed 30 days under the updated GDPR Article 17 interpretation.",
+          "vectorSimilarity": 0.98
+        }
+      }
+    }
+  ],
+  "approvals": [
+    {
+      "id": "APP-042",
+      "title": "Supersede Retention Policy DEC-104 with 30-Day GDPR Rule DEC-188",
+      "description": "Fictional approval fixture: request consensus before changing the retention policy.",
+      "actionType": "supersede_decision",
+      "proposedBy": "Elena Rostova (Compliance Lead)",
+      "requestedAt": "2026-04-08T10:00:00Z",
+      "status": "pending",
+      "impactLevel": "critical",
+      "exactActionPreview": "SIMULATED ONLY: approve a fictional change from 90-day to 30-day export retention.",
+      "targetEntityId": "DEC-104",
+      "targetEntityType": "decision",
+      "evidence": [
+        {
+          "id": "ev-app-042-1",
+          "sourceType": "meeting",
+          "sourceTitle": "Q2 Compliance & Legal Security Sign-off",
+          "speakerOrAuthor": "Elena Rostova",
+          "timestamp": "2026-04-07T10:45:18Z",
+          "quote": "Customer PII export lifecycle cannot exceed 30 days under the updated GDPR Article 17 interpretation.",
+          "vectorSimilarity": 0.98
+        }
+      ]
+    }
+  ],
+  "activity": [
+    {
+      "id": "ACT-901",
+      "type": "conflict_detected",
+      "title": "Fictional contradiction detected: export retention",
+      "description": "Simulator fixture links DEC-104 and DEC-188 through CONF-001.",
+      "timestamp": "2026-04-11T09:15:00Z",
+      "actor": "Test Fixture",
+      "entityId": "CONF-001",
+      "entityType": "conflict",
+      "evidence": [
+        {
+          "id": "ev-act-1",
+          "sourceType": "meeting",
+          "sourceTitle": "Fictional test evidence",
+          "speakerOrAuthor": "Test Fixture",
+          "timestamp": "2026-04-08T09:15:00Z",
+          "quote": "This record is fictional and used only for integration tests."
+        }
+      ],
+      "statusBadge": "Test Fixture"
+    },
+    {
+      "id": "ACT-902",
+      "type": "approval_requested",
+      "title": "Fictional approval request APP-042",
+      "description": "Fixture record; no approval or external mutation has occurred.",
+      "timestamp": "2026-04-10T16:45:00Z",
+      "actor": "Test Fixture",
+      "entityId": "APP-042",
+      "entityType": "approval",
+      "statusBadge": "Test Fixture"
+    }
+  ],
+  "metrics": {
+    "activeDecisionsCount": 1,
+    "openCommitmentsCount": 2,
+    "detectedConflictsCount": 1,
+    "pendingApprovalsCount": 1,
+    "decisionTrend": [
+      { "period": "Mar 2026", "decisions": 1, "commitments": 1 },
+      { "period": "Apr 2026", "decisions": 2, "commitments": 2 }
+    ],
+    "attentionItems": [
+      {
+        "id": "CONF-001",
+        "type": "conflict",
+        "title": "Fictional export retention conflict",
+        "severity": "critical",
+        "actionUrl": "/dashboard/conflicts",
+        "time": "Test fixture"
+      },
+      {
+        "id": "APP-042",
+        "type": "approval",
+        "title": "Fictional approval request",
+        "severity": "critical",
+        "actionUrl": "/dashboard/approvals",
+        "time": "Test fixture"
+      }
+    ],
+    "recentActivity": [
+      {
+        "id": "ACT-901",
+        "type": "conflict_detected",
+        "title": "Fictional contradiction detected: export retention",
+        "description": "Simulator fixture links DEC-104 and DEC-188 through CONF-001.",
+        "timestamp": "2026-04-11T09:15:00Z",
+        "actor": "Test Fixture",
+        "entityId": "CONF-001",
+        "entityType": "conflict",
+        "statusBadge": "Test Fixture"
+      }
+    ]
+  }
+}

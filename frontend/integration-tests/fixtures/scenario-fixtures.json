@@ -1,0 +1,62 @@
+{
+  "fictional_test_fixtures": true,
+  "does_not_call_lyzr": true,
+  "meeting_to_decision": {
+    "transcript": "Alice: After reviewing the latency metrics, we decided to standardize on PostgreSQL for all relational data storage.",
+    "expected": {
+      "decision_count": 1,
+      "evidence_quote": "we decided to standardize on PostgreSQL",
+      "speaker": "Alice",
+      "ungrounded_claim_count": 0
+    },
+    "observed": {
+      "decisions": [
+        {
+          "id": "DEC-SIM-001",
+          "title": "Standardize relational storage on PostgreSQL",
+          "evidenceQuote": "we decided to standardize on PostgreSQL",
+          "speaker": "Alice"
+        }
+      ],
+      "ungroundedClaims": []
+    }
+  },
+  "conflict_recommendation": {
+    "conflict_id": "CONF-001",
+    "recommended_action": {
+      "id": "ACT-SIM-001",
+      "title": "Request human review of the fictional retention conflict",
+      "description": "A test-only action generated from the conflict fixture.",
+      "type": "follow_up",
+      "suggestedAssignee": "Test Reviewer",
+      "urgency": "high",
+      "requiresApproval": true,
+      "targetEntityType": "conflict",
+      "targetEntityId": "CONF-001",
+      "approvalPayload": {
+        "actionType": "override_conflict",
+        "exactActionPreview": "SIMULATED ONLY: review fictional conflict CONF-001; no external action will run.",
+        "riskLevel": "high"
+      }
+    },
+    "pending_approval_id": "APP-042",
+    "observed": {
+      "requiresApproval": true,
+      "approvalId": "APP-042",
+      "externalActionExecuted": false
+    }
+  },
+  "missing_evidence": {
+    "transcript": "Ian: Maybe we should migrate everything to GraphQL at some point.",
+    "expected": {
+      "decisions": [],
+      "ungroundedClaims": ["Ambiguous proposal without consensus"],
+      "commitmentDeadlineUncertain": true
+    },
+    "observed": {
+      "decisions": [],
+      "ungroundedClaims": ["Ambiguous proposal without consensus"],
+      "commitmentDeadlineUncertain": true
+    }
+  }
+}
