@@ -1,0 +1,1146 @@
+[
+  {
+    "route": "/auth/sign-in",
+    "name": "auth_sign_in",
+    "viewport_checks": [
+      {
+        "viewport": "mobile_320",
+        "width": 320,
+        "height": 640,
+        "has_overflow": false,
+        "scroll_width": 320,
+        "inner_width": 320
+      },
+      {
+        "viewport": "mobile_375",
+        "width": 375,
+        "height": 667,
+        "has_overflow": false,
+        "scroll_width": 375,
+        "inner_width": 375
+      },
+      {
+        "viewport": "mobile_390",
+        "width": 390,
+        "height": 844,
+        "has_overflow": false,
+        "scroll_width": 390,
+        "inner_width": 390
+      },
+      {
+        "viewport": "mobile_430",
+        "width": 430,
+        "height": 932,
+        "has_overflow": false,
+        "scroll_width": 430,
+        "inner_width": 430
+      },
+      {
+        "viewport": "tablet_768",
+        "width": 768,
+        "height": 1024,
+        "has_overflow": false,
+        "scroll_width": 768,
+        "inner_width": 768
+      },
+      {
+        "viewport": "laptop_1024",
+        "width": 1024,
+        "height": 768,
+        "has_overflow": false,
+        "scroll_width": 1024,
+        "inner_width": 1024
+      },
+      {
+        "viewport": "desktop_1440",
+        "width": 1440,
+        "height": 900,
+        "has_overflow": false,
+        "scroll_width": 1440,
+        "inner_width": 1440
+      }
+    ],
+    "console_errors": [],
+    "title": "Sign In | DecisionTrace",
+    "has_favicon": true,
+    "has_meta_desc": true,
+    "meta_description": "Sign in to DecisionTrace to access the Autonomous Decision & Commitment Guardian",
+    "has_robots": true,
+    "robots_content": "noindex, nofollow",
+    "links_audited": 2,
+    "buttons_audited": 0,
+    "screenshots": {
+      "desktop_1440": "auth_sign_in_desktop_1440.png",
+      "mobile_320": "auth_sign_in_mobile_320.png",
+      "mobile_390": "auth_sign_in_mobile_390.png"
+    }
+  },
+  {
+    "route": "/auth/sign-up",
+    "name": "auth_sign_up",
+    "viewport_checks": [
+      {
+        "viewport": "mobile_320",
+        "width": 320,
+        "height": 640,
+        "has_overflow": false,
+        "scroll_width": 320,
+        "inner_width": 320
+      },
+      {
+        "viewport": "mobile_375",
+        "width": 375,
+        "height": 667,
+        "has_overflow": false,
+        "scroll_width": 375,
+        "inner_width": 375
+      },
+      {
+        "viewport": "mobile_390",
+        "width": 390,
+        "height": 844,
+        "has_overflow": false,
+        "scroll_width": 390,
+        "inner_width": 390
+      },
+      {
+        "viewport": "mobile_430",
+        "width": 430,
+        "height": 932,
+        "has_overflow": false,
+        "scroll_width": 430,
+        "inner_width": 430
+      },
+      {
+        "viewport": "tablet_768",
+        "width": 768,
+        "height": 1024,
+        "has_overflow": false,
+        "scroll_width": 768,
+        "inner_width": 768
+      },
+      {
+        "viewport": "laptop_1024",
+        "width": 1024,
+        "height": 768,
+        "has_overflow": false,
+        "scroll_width": 1024,
+        "inner_width": 1024
+      },
+      {
+        "viewport": "desktop_1440",
+        "width": 1440,
+        "height": 900,
+        "has_overflow": false,
+        "scroll_width": 1440,
+        "inner_width": 1440
+      }
+    ],
+    "console_errors": [],
+    "title": "Sign Up | DecisionTrace",
+    "has_favicon": true,
+    "has_meta_desc": true,
+    "meta_description": "Create a new DecisionTrace account to access autonomous decision tracking",
+    "has_robots": true,
+    "robots_content": "noindex, nofollow",
+    "links_audited": 2,
+    "buttons_audited": 0,
+    "screenshots": {
+      "desktop_1440": "auth_sign_up_desktop_1440.png",
+      "mobile_320": "auth_sign_up_mobile_320.png",
+      "mobile_390": "auth_sign_up_mobile_390.png"
+    }
+  },
+  {
+    "route": "/sign-in",
+    "name": "root_sign_in",
+    "viewport_checks": [
+      {
+        "viewport": "mobile_320",
+        "width": 320,
+        "height": 640,
+        "has_overflow": false,
+        "scroll_width": 320,
+        "inner_width": 320
+      },
+      {
+        "viewport": "mobile_375",
+        "width": 375,
+        "height": 667,
+        "has_overflow": false,
+        "scroll_width": 375,
+        "inner_width": 375
+      },
+      {
+        "viewport": "mobile_390",
+        "width": 390,
+        "height": 844,
+        "has_overflow": false,
+        "scroll_width": 390,
+        "inner_width": 390
+      },
+      {
+        "viewport": "mobile_430",
+        "width": 430,
+        "height": 932,
+        "has_overflow": false,
+        "scroll_width": 430,
+        "inner_width": 430
+      },
+      {
+        "viewport": "tablet_768",
+        "width": 768,
+        "height": 1024,
+        "has_overflow": false,
+        "scroll_width": 768,
+        "inner_width": 768
+      },
+      {
+        "viewport": "laptop_1024",
+        "width": 1024,
+        "height": 768,
+        "has_overflow": false,
+        "scroll_width": 1024,
+        "inner_width": 1024
+      },
+      {
+        "viewport": "desktop_1440",
+        "width": 1440,
+        "height": 900,
+        "has_overflow": false,
+        "scroll_width": 1440,
+        "inner_width": 1440
+      }
+    ],
+    "console_errors": [],
+    "title": "Sign In | DecisionTrace",
+    "has_favicon": true,
+    "has_meta_desc": true,
+    "meta_description": "Sign in to DecisionTrace to access the Autonomous Decision & Commitment Guardian",
+    "has_robots": false,
+    "robots_content": "",
+    "links_audited": 2,
+    "buttons_audited": 0,
+    "screenshots": {
+      "desktop_1440": "root_sign_in_desktop_1440.png",
+      "mobile_320": "root_sign_in_mobile_320.png",
+      "mobile_390": "root_sign_in_mobile_390.png"
+    }
+  },
+  {
+    "route": "/sign-up",
+    "name": "root_sign_up",
+    "viewport_checks": [
+      {
+        "viewport": "mobile_320",
+        "width": 320,
+        "height": 640,
+        "has_overflow": false,
+        "scroll_width": 320,
+        "inner_width": 320
+      },
+      {
+        "viewport": "mobile_375",
+        "width": 375,
+        "height": 667,
+        "has_overflow": false,
+        "scroll_width": 375,
+        "inner_width": 375
+      },
+      {
+        "viewport": "mobile_390",
+        "width": 390,
+        "height": 844,
+        "has_overflow": false,
+        "scroll_width": 390,
+        "inner_width": 390
+      },
+      {
+        "viewport": "mobile_430",
+        "width": 430,
+        "height": 932,
+        "has_overflow": false,
+        "scroll_width": 430,
+        "inner_width": 430
+      },
+      {
+        "viewport": "tablet_768",
+        "width": 768,
+        "height": 1024,
+        "has_overflow": false,
+        "scroll_width": 768,
+        "inner_width": 768
+      },
+      {
+        "viewport": "laptop_1024",
+        "width": 1024,
+        "height": 768,
+        "has_overflow": false,
+        "scroll_width": 1024,
+        "inner_width": 1024
+      },
+      {
+        "viewport": "desktop_1440",
+        "width": 1440,
+        "height": 900,
+        "has_overflow": false,
+        "scroll_width": 1440,
+        "inner_width": 1440
+      }
+    ],
+    "console_errors": [],
+    "title": "Sign Up | DecisionTrace",
+    "has_favicon": true,
+    "has_meta_desc": true,
+    "meta_description": "Create a new DecisionTrace account to access autonomous decision tracking",
+    "has_robots": false,
+    "robots_content": "",
+    "links_audited": 2,
+    "buttons_audited": 0,
+    "screenshots": {
+      "desktop_1440": "root_sign_up_desktop_1440.png",
+      "mobile_320": "root_sign_up_mobile_320.png",
+      "mobile_390": "root_sign_up_mobile_390.png"
+    }
+  },
+  {
+    "route": "/non-existent-page-404",
+    "name": "not_found_404",
+    "viewport_checks": [
+      {
+        "viewport": "mobile_320",
+        "width": 320,
+        "height": 640,
+        "has_overflow": false,
+        "scroll_width": 320,
+        "inner_width": 320
+      },
+      {
+        "viewport": "mobile_375",
+        "width": 375,
+        "height": 667,
+        "has_overflow": false,
+        "scroll_width": 375,
+        "inner_width": 375
+      },
+      {
+        "viewport": "mobile_390",
+        "width": 390,
+        "height": 844,
+        "has_overflow": false,
+        "scroll_width": 390,
+        "inner_width": 390
+      },
+      {
+        "viewport": "mobile_430",
+        "width": 430,
+        "height": 932,
+        "has_overflow": false,
+        "scroll_width": 430,
+        "inner_width": 430
+      },
+      {
+        "viewport": "tablet_768",
+        "width": 768,
+        "height": 1024,
+        "has_overflow": false,
+        "scroll_width": 768,
+        "inner_width": 768
+      },
+      {
+        "viewport": "laptop_1024",
+        "width": 1024,
+        "height": 768,
+        "has_overflow": false,
+        "scroll_width": 1024,
+        "inner_width": 1024
+      },
+      {
+        "viewport": "desktop_1440",
+        "width": 1440,
+        "height": 900,
+        "has_overflow": false,
+        "scroll_width": 1440,
+        "inner_width": 1440
+      }
+    ],
+    "console_errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "title": "DecisionTrace \u2014 Autonomous Decision & Commitment Guardian",
+    "has_favicon": true,
+    "has_meta_desc": true,
+    "meta_description": "Autonomous Decision & Commitment Guardian \u2014 Track decisions, monitor commitments, detect conflicts and govern automated approvals.",
+    "has_robots": true,
+    "robots_content": "noindex",
+    "links_audited": 0,
+    "buttons_audited": 2,
+    "screenshots": {
+      "desktop_1440": "not_found_404_desktop_1440.png",
+      "mobile_320": "not_found_404_mobile_320.png",
+      "mobile_390": "not_found_404_mobile_390.png"
+    }
+  },
+  {
+    "route": "/dashboard/overview",
+    "name": "dashboard_overview",
+    "viewport_checks": [
+      {
+        "viewport": "mobile_320",
+        "width": 320,
+        "height": 640,
+        "has_overflow": false,
+        "scroll_width": 320,
+        "inner_width": 320
+      },
+      {
+        "viewport": "mobile_375",
+        "width": 375,
+        "height": 667,
+        "has_overflow": false,
+        "scroll_width": 375,
+        "inner_width": 375
+      },
+      {
+        "viewport": "mobile_390",
+        "width": 390,
+        "height": 844,
+        "has_overflow": false,
+        "scroll_width": 390,
+        "inner_width": 390
+      },
+      {
+        "viewport": "mobile_430",
+        "width": 430,
+        "height": 932,
+        "has_overflow": false,
+        "scroll_width": 430,
+        "inner_width": 430
+      },
+      {
+        "viewport": "tablet_768",
+        "width": 768,
+        "height": 1024,
+        "has_overflow": false,
+        "scroll_width": 768,
+        "inner_width": 768
+      },
+      {
+        "viewport": "laptop_1024",
+        "width": 1024,
+        "height": 768,
+        "has_overflow": false,
+        "scroll_width": 1024,
+        "inner_width": 1024
+      },
+      {
+        "viewport": "desktop_1440",
+        "width": 1440,
+        "height": 900,
+        "has_overflow": false,
+        "scroll_width": 1440,
+        "inner_width": 1440
+      }
+    ],
+    "console_errors": [],
+    "title": "Overview",
+    "has_favicon": true,
+    "has_meta_desc": true,
+    "meta_description": "DecisionTrace autonomous guardian overview \u2014 monitor live decisions, active commitments, conflict detection, and pending approvals.",
+    "has_robots": true,
+    "robots_content": "noindex, nofollow",
+    "links_audited": 17,
+    "buttons_audited": 10,
+    "screenshots": {
+      "desktop_1440": "dashboard_overview_desktop_1440.png",
+      "mobile_320": "dashboard_overview_mobile_320.png",
+      "mobile_390": "dashboard_overview_mobile_390.png"
+    }
+  },
+  {
+    "route": "/dashboard/decisions",
+    "name": "dashboard_decisions",
+    "viewport_checks": [
+      {
+        "viewport": "mobile_320",
+        "width": 320,
+        "height": 640,
+        "has_overflow": false,
+        "scroll_width": 320,
+        "inner_width": 320
+      },
+      {
+        "viewport": "mobile_375",
+        "width": 375,
+        "height": 667,
+        "has_overflow": false,
+        "scroll_width": 375,
+        "inner_width": 375
+      },
+      {
+        "viewport": "mobile_390",
+        "width": 390,
+        "height": 844,
+        "has_overflow": false,
+        "scroll_width": 390,
+        "inner_width": 390
+      },
+      {
+        "viewport": "mobile_430",
+        "width": 430,
+        "height": 932,
+        "has_overflow": false,
+        "scroll_width": 430,
+        "inner_width": 430
+      },
+      {
+        "viewport": "tablet_768",
+        "width": 768,
+        "height": 1024,
+        "has_overflow": false,
+        "scroll_width": 768,
+        "inner_width": 768
+      },
+      {
+        "viewport": "laptop_1024",
+        "width": 1024,
+        "height": 768,
+        "has_overflow": false,
+        "scroll_width": 1024,
+        "inner_width": 1024
+      },
+      {
+        "viewport": "desktop_1440",
+        "width": 1440,
+        "height": 900,
+        "has_overflow": false,
+        "scroll_width": 1440,
+        "inner_width": 1440
+      }
+    ],
+    "console_errors": [],
+    "title": "Decisions",
+    "has_favicon": true,
+    "has_meta_desc": true,
+    "meta_description": "Searchable decision registry with verifiable conversation evidence and consensus verification",
+    "has_robots": true,
+    "robots_content": "noindex, nofollow",
+    "links_audited": 12,
+    "buttons_audited": 14,
+    "screenshots": {
+      "desktop_1440": "dashboard_decisions_desktop_1440.png",
+      "mobile_320": "dashboard_decisions_mobile_320.png",
+      "mobile_390": "dashboard_decisions_mobile_390.png"
+    }
+  },
+  {
+    "route": "/dashboard/commitments",
+    "name": "dashboard_commitments",
+    "viewport_checks": [
+      {
+        "viewport": "mobile_320",
+        "width": 320,
+        "height": 640,
+        "has_overflow": false,
+        "scroll_width": 320,
+        "inner_width": 320
+      },
+      {
+        "viewport": "mobile_375",
+        "width": 375,
+        "height": 667,
+        "has_overflow": false,
+        "scroll_width": 375,
+        "inner_width": 375
+      },
+      {
+        "viewport": "mobile_390",
+        "width": 390,
+        "height": 844,
+        "has_overflow": false,
+        "scroll_width": 390,
+        "inner_width": 390
+      },
+      {
+        "viewport": "mobile_430",
+        "width": 430,
+        "height": 932,
+        "has_overflow": false,
+        "scroll_width": 430,
+        "inner_width": 430
+      },
+      {
+        "viewport": "tablet_768",
+        "width": 768,
+        "height": 1024,
+        "has_overflow": false,
+        "scroll_width": 768,
+        "inner_width": 768
+      },
+      {
+        "viewport": "laptop_1024",
+        "width": 1024,
+        "height": 768,
+        "has_overflow": false,
+        "scroll_width": 1024,
+        "inner_width": 1024
+      },
+      {
+        "viewport": "desktop_1440",
+        "width": 1440,
+        "height": 900,
+        "has_overflow": false,
+        "scroll_width": 1440,
+        "inner_width": 1440
+      }
+    ],
+    "console_errors": [],
+    "title": "Commitments",
+    "has_favicon": true,
+    "has_meta_desc": true,
+    "meta_description": "Commitment tracking board derived from architectural decisions with verifiable ownership",
+    "has_robots": true,
+    "robots_content": "noindex, nofollow",
+    "links_audited": 12,
+    "buttons_audited": 14,
+    "screenshots": {
+      "desktop_1440": "dashboard_commitments_desktop_1440.png",
+      "mobile_320": "dashboard_commitments_mobile_320.png",
+      "mobile_390": "dashboard_commitments_mobile_390.png"
+    }
+  },
+  {
+    "route": "/dashboard/conflicts",
+    "name": "dashboard_conflicts",
+    "viewport_checks": [
+      {
+        "viewport": "mobile_320",
+        "width": 320,
+        "height": 640,
+        "has_overflow": false,
+        "scroll_width": 320,
+        "inner_width": 320
+      },
+      {
+        "viewport": "mobile_375",
+        "width": 375,
+        "height": 667,
+        "has_overflow": false,
+        "scroll_width": 375,
+        "inner_width": 375
+      },
+      {
+        "viewport": "mobile_390",
+        "width": 390,
+        "height": 844,
+        "has_overflow": false,
+        "scroll_width": 390,
+        "inner_width": 390
+      },
+      {
+        "viewport": "mobile_430",
+        "width": 430,
+        "height": 932,
+        "has_overflow": false,
+        "scroll_width": 430,
+        "inner_width": 430
+      },
+      {
+        "viewport": "tablet_768",
+        "width": 768,
+        "height": 1024,
+        "has_overflow": false,
+        "scroll_width": 768,
+        "inner_width": 768
+      },
+      {
+        "viewport": "laptop_1024",
+        "width": 1024,
+        "height": 768,
+        "has_overflow": false,
+        "scroll_width": 1024,
+        "inner_width": 1024
+      },
+      {
+        "viewport": "desktop_1440",
+        "width": 1440,
+        "height": 900,
+        "has_overflow": false,
+        "scroll_width": 1440,
+        "inner_width": 1440
+      }
+    ],
+    "console_errors": [],
+    "title": "Conflicts",
+    "has_favicon": true,
+    "has_meta_desc": true,
+    "meta_description": "Evidence-backed contradiction detector comparing historical and recent decisions",
+    "has_robots": true,
+    "robots_content": "noindex, nofollow",
+    "links_audited": 12,
+    "buttons_audited": 14,
+    "screenshots": {
+      "desktop_1440": "dashboard_conflicts_desktop_1440.png",
+      "mobile_320": "dashboard_conflicts_mobile_320.png",
+      "mobile_390": "dashboard_conflicts_mobile_390.png"
+    }
+  },
+  {
+    "route": "/dashboard/approvals",
+    "name": "dashboard_approvals",
+    "viewport_checks": [
+      {
+        "viewport": "mobile_320",
+        "width": 320,
+        "height": 640,
+        "has_overflow": false,
+        "scroll_width": 320,
+        "inner_width": 320
+      },
+      {
+        "viewport": "mobile_375",
+        "width": 375,
+        "height": 667,
+        "has_overflow": false,
+        "scroll_width": 375,
+        "inner_width": 375
+      },
+      {
+        "viewport": "mobile_390",
+        "width": 390,
+        "height": 844,
+        "has_overflow": false,
+        "scroll_width": 390,
+        "inner_width": 390
+      },
+      {
+        "viewport": "mobile_430",
+        "width": 430,
+        "height": 932,
+        "has_overflow": false,
+        "scroll_width": 430,
+        "inner_width": 430
+      },
+      {
+        "viewport": "tablet_768",
+        "width": 768,
+        "height": 1024,
+        "has_overflow": false,
+        "scroll_width": 768,
+        "inner_width": 768
+      },
+      {
+        "viewport": "laptop_1024",
+        "width": 1024,
+        "height": 768,
+        "has_overflow": false,
+        "scroll_width": 1024,
+        "inner_width": 1024
+      },
+      {
+        "viewport": "desktop_1440",
+        "width": 1440,
+        "height": 900,
+        "has_overflow": false,
+        "scroll_width": 1440,
+        "inner_width": 1440
+      }
+    ],
+    "console_errors": [],
+    "title": "Approvals",
+    "has_favicon": true,
+    "has_meta_desc": true,
+    "meta_description": "Human-in-the-loop consensus approvals with execution impact previews",
+    "has_robots": true,
+    "robots_content": "noindex, nofollow",
+    "links_audited": 12,
+    "buttons_audited": 14,
+    "screenshots": {
+      "desktop_1440": "dashboard_approvals_desktop_1440.png",
+      "mobile_320": "dashboard_approvals_mobile_320.png",
+      "mobile_390": "dashboard_approvals_mobile_390.png"
+    }
+  },
+  {
+    "route": "/dashboard/activity",
+    "name": "dashboard_activity",
+    "viewport_checks": [
+      {
+        "viewport": "mobile_320",
+        "width": 320,
+        "height": 640,
+        "has_overflow": false,
+        "scroll_width": 320,
+        "inner_width": 320
+      },
+      {
+        "viewport": "mobile_375",
+        "width": 375,
+        "height": 667,
+        "has_overflow": false,
+        "scroll_width": 375,
+        "inner_width": 375
+      },
+      {
+        "viewport": "mobile_390",
+        "width": 390,
+        "height": 844,
+        "has_overflow": false,
+        "scroll_width": 390,
+        "inner_width": 390
+      },
+      {
+        "viewport": "mobile_430",
+        "width": 430,
+        "height": 932,
+        "has_overflow": false,
+        "scroll_width": 430,
+        "inner_width": 430
+      },
+      {
+        "viewport": "tablet_768",
+        "width": 768,
+        "height": 1024,
+        "has_overflow": false,
+        "scroll_width": 768,
+        "inner_width": 768
+      },
+      {
+        "viewport": "laptop_1024",
+        "width": 1024,
+        "height": 768,
+        "has_overflow": false,
+        "scroll_width": 1024,
+        "inner_width": 1024
+      },
+      {
+        "viewport": "desktop_1440",
+        "width": 1440,
+        "height": 900,
+        "has_overflow": false,
+        "scroll_width": 1440,
+        "inner_width": 1440
+      }
+    ],
+    "console_errors": [],
+    "title": "Activity",
+    "has_favicon": true,
+    "has_meta_desc": true,
+    "meta_description": "Chronological timeline of conversations processed, decisions extracted, conflicts detected, and approvals",
+    "has_robots": true,
+    "robots_content": "noindex, nofollow",
+    "links_audited": 12,
+    "buttons_audited": 16,
+    "screenshots": {
+      "desktop_1440": "dashboard_activity_desktop_1440.png",
+      "mobile_320": "dashboard_activity_mobile_320.png",
+      "mobile_390": "dashboard_activity_mobile_390.png"
+    }
+  },
+  {
+    "route": "/dashboard/workspaces",
+    "name": "dashboard_workspaces",
+    "viewport_checks": [
+      {
+        "viewport": "mobile_320",
+        "width": 320,
+        "height": 640,
+        "has_overflow": false,
+        "scroll_width": 320,
+        "inner_width": 320
+      },
+      {
+        "viewport": "mobile_375",
+        "width": 375,
+        "height": 667,
+        "has_overflow": false,
+        "scroll_width": 375,
+        "inner_width": 375
+      },
+      {
+        "viewport": "mobile_390",
+        "width": 390,
+        "height": 844,
+        "has_overflow": false,
+        "scroll_width": 390,
+        "inner_width": 390
+      },
+      {
+        "viewport": "mobile_430",
+        "width": 430,
+        "height": 932,
+        "has_overflow": false,
+        "scroll_width": 430,
+        "inner_width": 430
+      },
+      {
+        "viewport": "tablet_768",
+        "width": 768,
+        "height": 1024,
+        "has_overflow": false,
+        "scroll_width": 768,
+        "inner_width": 768
+      },
+      {
+        "viewport": "laptop_1024",
+        "width": 1024,
+        "height": 768,
+        "has_overflow": false,
+        "scroll_width": 1024,
+        "inner_width": 1024
+      },
+      {
+        "viewport": "desktop_1440",
+        "width": 1440,
+        "height": 900,
+        "has_overflow": false,
+        "scroll_width": 1440,
+        "inner_width": 1440
+      }
+    ],
+    "console_errors": [],
+    "title": "Workspaces",
+    "has_favicon": true,
+    "has_meta_desc": true,
+    "meta_description": "Manage DecisionTrace team workspaces, tenant isolation, and organization memberships",
+    "has_robots": true,
+    "robots_content": "noindex, nofollow",
+    "links_audited": 14,
+    "buttons_audited": 11,
+    "screenshots": {
+      "desktop_1440": "dashboard_workspaces_desktop_1440.png",
+      "mobile_320": "dashboard_workspaces_mobile_320.png",
+      "mobile_390": "dashboard_workspaces_mobile_390.png"
+    }
+  },
+  {
+    "route": "/dashboard/notifications",
+    "name": "dashboard_notifications",
+    "viewport_checks": [
+      {
+        "viewport": "mobile_320",
+        "width": 320,
+        "height": 640,
+        "has_overflow": false,
+        "scroll_width": 320,
+        "inner_width": 320
+      },
+      {
+        "viewport": "mobile_375",
+        "width": 375,
+        "height": 667,
+        "has_overflow": false,
+        "scroll_width": 375,
+        "inner_width": 375
+      },
+      {
+        "viewport": "mobile_390",
+        "width": 390,
+        "height": 844,
+        "has_overflow": false,
+        "scroll_width": 390,
+        "inner_width": 390
+      },
+      {
+        "viewport": "mobile_430",
+        "width": 430,
+        "height": 932,
+        "has_overflow": false,
+        "scroll_width": 430,
+        "inner_width": 430
+      },
+      {
+        "viewport": "tablet_768",
+        "width": 768,
+        "height": 1024,
+        "has_overflow": false,
+        "scroll_width": 768,
+        "inner_width": 768
+      },
+      {
+        "viewport": "laptop_1024",
+        "width": 1024,
+        "height": 768,
+        "has_overflow": false,
+        "scroll_width": 1024,
+        "inner_width": 1024
+      },
+      {
+        "viewport": "desktop_1440",
+        "width": 1440,
+        "height": 900,
+        "has_overflow": false,
+        "scroll_width": 1440,
+        "inner_width": 1440
+      }
+    ],
+    "console_errors": [],
+    "title": "Notifications",
+    "has_favicon": true,
+    "has_meta_desc": true,
+    "meta_description": "Guardian contradiction alerts, consensus updates, and approval requests",
+    "has_robots": true,
+    "robots_content": "noindex, nofollow",
+    "links_audited": 12,
+    "buttons_audited": 22,
+    "screenshots": {
+      "desktop_1440": "dashboard_notifications_desktop_1440.png",
+      "mobile_320": "dashboard_notifications_mobile_320.png",
+      "mobile_390": "dashboard_notifications_mobile_390.png"
+    }
+  },
+  {
+    "route": "/dashboard/billing",
+    "name": "dashboard_billing",
+    "viewport_checks": [
+      {
+        "viewport": "mobile_320",
+        "width": 320,
+        "height": 640,
+        "has_overflow": false,
+        "scroll_width": 320,
+        "inner_width": 320
+      },
+      {
+        "viewport": "mobile_375",
+        "width": 375,
+        "height": 667,
+        "has_overflow": false,
+        "scroll_width": 375,
+        "inner_width": 375
+      },
+      {
+        "viewport": "mobile_390",
+        "width": 390,
+        "height": 844,
+        "has_overflow": false,
+        "scroll_width": 390,
+        "inner_width": 390
+      },
+      {
+        "viewport": "mobile_430",
+        "width": 430,
+        "height": 932,
+        "has_overflow": false,
+        "scroll_width": 430,
+        "inner_width": 430
+      },
+      {
+        "viewport": "tablet_768",
+        "width": 768,
+        "height": 1024,
+        "has_overflow": false,
+        "scroll_width": 768,
+        "inner_width": 768
+      },
+      {
+        "viewport": "laptop_1024",
+        "width": 1024,
+        "height": 768,
+        "has_overflow": false,
+        "scroll_width": 1024,
+        "inner_width": 1024
+      },
+      {
+        "viewport": "desktop_1440",
+        "width": 1440,
+        "height": 900,
+        "has_overflow": false,
+        "scroll_width": 1440,
+        "inner_width": 1440
+      }
+    ],
+    "console_errors": [],
+    "title": "Billing",
+    "has_favicon": true,
+    "has_meta_desc": true,
+    "meta_description": "Manage subscription plans, billing details, and workspace quotas",
+    "has_robots": true,
+    "robots_content": "noindex, nofollow",
+    "links_audited": 12,
+    "buttons_audited": 10,
+    "screenshots": {
+      "desktop_1440": "dashboard_billing_desktop_1440.png",
+      "mobile_320": "dashboard_billing_mobile_320.png",
+      "mobile_390": "dashboard_billing_mobile_390.png"
+    }
+  },
+  {
+    "route": "/dashboard/profile",
+    "name": "dashboard_profile",
+    "viewport_checks": [
+      {
+        "viewport": "mobile_320",
+        "width": 320,
+        "height": 640,
+        "has_overflow": false,
+        "scroll_width": 320,
+        "inner_width": 320
+      },
+      {
+        "viewport": "mobile_375",
+        "width": 375,
+        "height": 667,
+        "has_overflow": false,
+        "scroll_width": 375,
+        "inner_width": 375
+      },
+      {
+        "viewport": "mobile_390",
+        "width": 390,
+        "height": 844,
+        "has_overflow": false,
+        "scroll_width": 390,
+        "inner_width": 390
+      },
+      {
+        "viewport": "mobile_430",
+        "width": 430,
+        "height": 932,
+        "has_overflow": false,
+        "scroll_width": 430,
+        "inner_width": 430
+      },
+      {
+        "viewport": "tablet_768",
+        "width": 768,
+        "height": 1024,
+        "has_overflow": false,
+        "scroll_width": 768,
+        "inner_width": 768
+      },
+      {
+        "viewport": "laptop_1024",
+        "width": 1024,
+        "height": 768,
+        "has_overflow": false,
+        "scroll_width": 1024,
+        "inner_width": 1024
+      },
+      {
+        "viewport": "desktop_1440",
+        "width": 1440,
+        "height": 900,
+        "has_overflow": false,
+        "scroll_width": 1440,
+        "inner_width": 1440
+      }
+    ],
+    "console_errors": [
+      "e: Clerk: \ud83d\udd12 \n<UserProfile/> cannot render unless a user is signed in. Since no user is signed in, this is no-op.\n(This notice only appears in development)\n\n(code=\"cannot_render_user_missing\")\n\n\n    at ag.mountUserProfile (https://deciding-dogfish-8046.clerk.accounts.dev/npm/@clerk/clerk-js@6/dist/clerk.browser.js:46:219167)\n    at http://localhost:3000/_next/static/chunks/3dwm728o57ada.js:2:18018\n    at Map.forEach (<anonymous>)\n    at e.replayInterceptedInvocations (http://localhost:3000/_next/static/chunks/3dwm728o57ada.js:2:18000)\n    at e.getEntryChunks (http://localhost:3000/_next/static/chunks/3dwm728o57ada.js:2:35267)"
+    ],
+    "title": "Profile",
+    "has_favicon": true,
+    "has_meta_desc": true,
+    "meta_description": "User profile settings, credentials, and session preferences",
+    "has_robots": true,
+    "robots_content": "noindex, nofollow",
+    "links_audited": 12,
+    "buttons_audited": 10,
+    "screenshots": {
+      "desktop_1440": "dashboard_profile_desktop_1440.png",
+      "mobile_320": "dashboard_profile_mobile_320.png",
+      "mobile_390": "dashboard_profile_mobile_390.png"
+    }
+  }
+]

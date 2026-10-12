@@ -1,9 +1,11 @@
-import { SignUp } from '@clerk/nextjs';
+import { Metadata } from 'next';
+import SignUpViewPage from '@/features/auth/components/sigin-up-view';
+
+export const metadata: Metadata = {
+  title: 'Sign Up',
+  description: 'Create a new DecisionTrace account to access autonomous decision tracking'
+};
 
 export default function SignUpPage() {
-  return (
-    <div className='flex min-h-screen items-center justify-center'>
-      <SignUp />
-    </div>
-  );
+  return <SignUpViewPage />;
 }
