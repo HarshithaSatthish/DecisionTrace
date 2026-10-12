@@ -117,7 +117,7 @@ describe('DecisionTrace Mutation Resilience & Backend Failure Handling', () => {
             JSON.stringify({
               success: false,
               error:
-                'Backend service unreachable: Person 1 FastAPI endpoint /api/v1/approvals/appr-1/action is pending deployment. Approval actions are halted to prevent unverified mutations.',
+                'Backend service unreachable: Person 1 FastAPI endpoint /api/v1/approvals/appr-1/approve is pending deployment. Approval actions are halted to prevent unverified mutations.',
               code: 'BACKEND_PENDING_DEPLOYMENT'
             }),
             { status: 503, headers: { 'Content-Type': 'application/json' } }

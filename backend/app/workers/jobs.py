@@ -55,7 +55,22 @@ def _execute_job_pipeline(
 
     if not job or not conv:
         logger.error(f"Job {job_id} or Conv {conv_id} not found in database")
-        return {"status": "error", "message": "Record not found"}
+        raise ValueError(f"Job {job_id} or Conv {conv_id} not found in database")
+
+    # Idempotency: skip if already completed
+    if job.state == "completed":
+        logger.info(f"Job {job_id} for conversation {conv_id} is already completed. Skipping.")
+        return {
+            "status": "success",
+            "conversation_id": str(conv.id),
+            "state": "completed",
+            "already_completed": True,
+        }
+
+    # Preserve retry limits: refuse execution if maximum attempts exceeded
+    if job.state == "failed" and job.attempt_count >= 3:
+        logger.warning(f"Job {job_id} has exceeded maximum retry attempts ({job.attempt_count}).")
+        raise RuntimeError(f"Job {job_id} has exceeded maximum retry attempts ({job.attempt_count})")
 
     now = utc_now()
     job.state = "running"
@@ -135,18 +150,28 @@ def _execute_job_pipeline(
         # Run async adapter in event loop
         analysis_result = asyncio.run(adapter.analyze_conversation(agent_payload))
 
-        # 7. Record AgentRun
+        # 7. Record AgentRun with genuine run reference & stages if available
+        run_reference = (
+            analysis_result.run_reference
+            if analysis_result.run_reference
+            else f"run_{secrets.token_hex(8)}"
+        )
+        stage_events = (
+            analysis_result.stage_events
+            if analysis_result.stage_events
+            else [
+                {"stage": "analysis_completed", "classification": analysis_result.classification}
+            ]
+        )
         agent_run = AgentRun(
             conversation_id=conv.id,
             provider="lyzr",
             agent_id=adapter.manager_agent_id or "lyzr-eval-engine",
-            run_reference=f"run_{secrets.token_hex(8)}",
+            run_reference=run_reference,
             outcome="success",
             started_at=now,
             finished_at=utc_now(),
-            stage_events=[
-                {"stage": "analysis_completed", "classification": analysis_result.classification}
-            ],
+            stage_events=stage_events,
         )
         session.add(agent_run)
         session.flush()
@@ -217,9 +242,17 @@ def _execute_job_pipeline(
 
     except Exception as e:
         logger.exception(f"Processing error in conversation {conv.id}: {e}")
-        job.state = "failed" if job.attempt_count >= 3 else "retrying"
+        now_err = utc_now()
+        is_terminal = job.attempt_count >= 3
+        job.state = "failed" if is_terminal else "retrying"
         job.error = str(e)
-        job.finished_at = utc_now()
+        job.finished_at = now_err
+        job.milestones.append(
+            {"state": job.state, "timestamp": now_err.isoformat(), "error": str(e)}
+        )
+        conv.status = "failed" if is_terminal else "retrying"
         session.add(job)
+        session.add(conv)
         session.commit()
-        return {"status": "error", "error": str(e)}
+        # Propagate error so RQ accurately marks job as failed and triggers retry limits
+        raise

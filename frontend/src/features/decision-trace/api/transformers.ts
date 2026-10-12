@@ -13,7 +13,10 @@ import {
   ActivityType,
   ImpactLevel,
   EvidenceReference,
-  ConfidenceLevel
+  ConfidenceLevel,
+  OmiConversation,
+  OmiConversationDetail,
+  OmiIntegrationStatus
 } from '../types';
 
 interface BackendOverviewRaw {
@@ -414,4 +417,68 @@ export function transformBackendActivity(items: unknown[]): ActivityItem[] {
       statusBadge: a.action
     };
   });
+}
+
+
+export interface BackendConversationRaw {
+  id: string;
+  source_event_id?: string;
+  title?: string;
+  overview?: string;
+  transcript_preview?: string;
+  normalized_transcript?: string;
+  source_time?: string;
+  created_at?: string;
+  status?: string;
+  chunks?: Array<{ id: string; excerpt: string; vector_point_id?: string; source_time?: string }>;
+}
+
+export function transformBackendConversations(items: unknown[]): OmiConversation[] {
+  if (!Array.isArray(items)) return [];
+  return items.map((rawItem: unknown) => {
+    const c = rawItem as BackendConversationRaw;
+    return {
+      id: String(c.id),
+      sourceEventId: c.source_event_id,
+      title: c.title,
+      overview: c.overview,
+      transcriptPreview:
+        c.transcript_preview ||
+        (c.normalized_transcript
+          ? c.normalized_transcript.slice(0, 140) + '...'
+          : 'No transcript available'),
+      sourceTime: c.source_time || new Date().toISOString(),
+      createdAt: c.created_at || new Date().toISOString(),
+      status: (c.status || 'pending') as OmiConversation['status']
+    };
+  });
+}
+
+export function transformBackendConversationDetail(raw: unknown): OmiConversationDetail {
+  const c = (raw || {}) as BackendConversationRaw;
+  const chunks = Array.isArray(c.chunks)
+    ? c.chunks.map((chk) => ({
+        id: String(chk.id),
+        excerpt: chk.excerpt || '',
+        vectorPointId: chk.vector_point_id,
+        sourceTime: chk.source_time
+      }))
+    : [];
+
+  return {
+    id: String(c.id || ''),
+    sourceEventId: c.source_event_id,
+    title: c.title,
+    overview: c.overview,
+    transcriptPreview:
+      c.transcript_preview ||
+      (c.normalized_transcript
+        ? c.normalized_transcript.slice(0, 140) + '...'
+        : ''),
+    normalizedTranscript: c.normalized_transcript || '',
+    sourceTime: c.source_time || new Date().toISOString(),
+    createdAt: c.created_at || new Date().toISOString(),
+    status: (c.status || 'pending') as OmiConversation['status'],
+    chunks
+  };
 }

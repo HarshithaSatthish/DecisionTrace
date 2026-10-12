@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -70,3 +70,5 @@ class AgentAnalysisResult(BaseModel):
     confidence: Literal["low", "medium", "high"] = "medium"
     proposed_action: ProposedAction | None = None
     requires_human_approval: bool = True
+    run_reference: str | None = None
+    stage_events: list[dict[str, Any]] = Field(default_factory=list)

@@ -56,22 +56,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         };
       }
 
-      let res = await fetch(targetPath, {
+      const res = await fetch(targetPath, {
         method: 'POST',
         headers: authResult.headers,
         body: JSON.stringify(targetPayload),
         signal: controller.signal
       });
-
-      // Backward compatibility fallback to /action if /approve or /reject returns 404
-      if (res.status === 404) {
-        res = await fetch(`${backendUrl}/approvals/${id}/action`, {
-          method: 'POST',
-          headers: authResult.headers,
-          body: JSON.stringify(body),
-          signal: controller.signal
-        });
-      }
 
       clearTimeout(timeoutId);
 
@@ -117,9 +107,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     {
       success: false,
       error:
-        'Backend service unreachable: Person 1 FastAPI endpoint /api/v1/approvals/' +
+        'Backend service unreachable: FastAPI endpoint /api/v1/approvals/' +
         id +
-        '/action is pending deployment. Approval actions are halted to prevent unverified mutations.',
+        '/approve is pending deployment. Approval actions are halted to prevent unverified mutations.',
       code: 'BACKEND_PENDING_DEPLOYMENT',
       contractReference: 'docs/backend-integration-contract.md'
     },

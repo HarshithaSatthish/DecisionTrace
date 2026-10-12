@@ -14,7 +14,10 @@ from app.core.config import settings
 from app.workers.queue import get_queue, get_redis_connection
 
 if __name__ == "__main__":
-    print(f"Connecting to Redis at {settings.REDIS_URL}...")
+    from urllib.parse import urlparse
+    parsed = urlparse(settings.REDIS_URL)
+    sanitized_redis = f"{parsed.scheme}://{parsed.hostname or 'localhost'}:{parsed.port or 6379}{parsed.path}"
+    print(f"Connecting to Redis at {sanitized_redis}...")
     conn = get_redis_connection()
     q = get_queue()
 

@@ -60,6 +60,11 @@ class ApprovalService:
         finding = session.get(Finding, approval_req.finding_id)
         if not finding:
             raise HTTPException(status_code=404, detail="Finding not found")
+        if finding.user_id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Finding belongs to another user. Cross-tenant mutation forbidden.",
+            )
 
         action_payload = approval_req.action_payload or {}
         kind = action_payload.get("kind")
@@ -114,12 +119,30 @@ class ApprovalService:
             target_dec: Decision | None = None
             if target_decision_id_raw:
                 try:
-                    target_dec = session.get(Decision, uuid.UUID(str(target_decision_id_raw)))
+                    target_uuid = uuid.UUID(str(target_decision_id_raw))
+                    target_dec = session.get(Decision, target_uuid)
                 except ValueError:
-                    target_dec = None
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Invalid target_decision_id UUID format",
+                    )
+                if not target_dec:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="Referenced target decision not found",
+                    )
+                # Strict multi-tenant authorization: verify target decision belongs to authenticated user
+                if target_dec.user_id != user_id:
+                    logger.warning(
+                        f"Cross-user authorization violation: user {user_id} attempted to mutate decision {target_dec.id} of user {target_dec.user_id}"
+                    )
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Referenced target decision belongs to another user. Cross-tenant mutation forbidden.",
+                    )
 
             if not target_dec and finding.topic_key:
-                # Find by topic
+                # Find by topic strictly scoped to authenticated user
                 target_dec = session.exec(
                     select(Decision).where(
                         Decision.user_id == user_id,

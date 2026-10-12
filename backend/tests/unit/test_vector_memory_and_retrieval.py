@@ -116,3 +116,36 @@ def test_production_mode_raises_when_qdrant_unreachable(monkeypatch):
 
     with pytest.raises(RuntimeError, match="Remote Qdrant unavailable in production"):
         mem_service.get_qdrant_client()
+
+
+def test_retrieval_distinguishes_failure_from_empty_results():
+    """Ensure Qdrant failures raise RetrievalError rather than pretending retrieval succeeded with []."""
+    import pytest
+    from unittest.mock import MagicMock
+    from app.services.retrieval import RetrievalError, retrieve_prior_evidence
+
+    mock_client = MagicMock()
+    # Simulate a network/server failure inside Qdrant
+    mock_client.query_points.side_effect = RuntimeError("Connection timeout to Qdrant cluster")
+
+    with pytest.raises(RetrievalError, match="Vector retrieval failed from Qdrant"):
+        retrieve_prior_evidence(
+            user_id=uuid.uuid4(),
+            exclude_conversation_id=uuid.uuid4(),
+            query_text="Find my previous decisions",
+            client=mock_client,
+        )
+
+    # In contrast, a genuine 0-point query response must return honest empty list [] without error
+    mock_empty_client = MagicMock()
+    mock_result = MagicMock()
+    mock_result.points = []
+    mock_empty_client.query_points.return_value = mock_result
+
+    genuine_empty = retrieve_prior_evidence(
+        user_id=uuid.uuid4(),
+        exclude_conversation_id=uuid.uuid4(),
+        query_text="Find my previous decisions",
+        client=mock_empty_client,
+    )
+    assert genuine_empty == []

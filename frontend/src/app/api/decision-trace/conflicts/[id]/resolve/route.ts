@@ -18,29 +18,96 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-      const res = await fetch(`${backendUrl}/conflicts/${id}/resolve`, {
-        method: 'POST',
-        headers: authResult.headers,
-        body: JSON.stringify(body),
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
+      // Conflict resolution in DecisionTrace is approval-gated.
+      // 1. Locate the approval request for this conflict/finding
+      let approvalId = body.approval_id || body.approvalId;
+      let execKey = body.execution_key || body.executionKey;
 
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) {
-        return NextResponse.json(data);
+      if (!approvalId) {
+        // Query pending approvals to find matching finding_id or approval_id
+        const listRes = await fetch(`${backendUrl}/approvals?limit=50`, {
+          headers: authResult.headers,
+          cache: 'no-store',
+          signal: controller.signal
+        });
+        if (listRes.ok) {
+          const listData = await listRes.json();
+          const items = Array.isArray(listData.items) ? listData.items : [];
+          const match = items.find(
+            (a: { id?: string; finding_id?: string }) =>
+              String(a.id) === id || String(a.finding_id) === id
+          );
+          if (match) {
+            approvalId = match.id;
+            execKey = match.execution_key;
+          }
+        }
       }
 
+      // If approval request was located, route through the approval-gated mutation endpoint
+      if (approvalId) {
+        const action = body.action || 'resolve';
+        let targetEndpoint = '';
+        let targetPayload: Record<string, unknown> = {};
+
+        if (action === 'dismiss') {
+          targetEndpoint = `${backendUrl}/approvals/${approvalId}/reject`;
+          targetPayload = { reason: body.rationale || 'Dismissed by reviewer' };
+        } else if (action === 'escalate') {
+          targetEndpoint = `${backendUrl}/approvals/${approvalId}/clarify`;
+          targetPayload = {
+            clarification_request: body.rationale || 'Escalated for clarification'
+          };
+        } else {
+          targetEndpoint = `${backendUrl}/approvals/${approvalId}/approve`;
+          targetPayload = {
+            execution_key: execKey || 'exec_key_auto',
+            note: body.rationale || 'Resolved by human reviewer'
+          };
+        }
+
+        const appRes = await fetch(targetEndpoint, {
+          method: 'POST',
+          headers: authResult.headers,
+          body: JSON.stringify(targetPayload),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        const appData = await appRes.json().catch(() => ({}));
+        if (appRes.ok) {
+          return NextResponse.json({
+            success: true,
+            conflictId: id,
+            approvalId,
+            status: appData.status || 'resolved',
+            message: appData.message || `Conflict ${id} resolved successfully through consensus approval.`,
+            resultingDecision: appData.resulting_decision
+          });
+        }
+
+        return NextResponse.json(
+          {
+            success: false,
+            error: appData.detail || appData.error || `FastAPI approval failed with status ${appRes.status}`,
+            code: 'APPROVAL_MUTATION_FAILED'
+          },
+          { status: appRes.status }
+        );
+      }
+
+      clearTimeout(timeoutId);
+
+      // If no approval request was found for this conflict
       return NextResponse.json(
         {
           success: false,
           error:
-            data.detail ||
-            data.error ||
-            `FastAPI conflict resolution failed with status ${res.status}`,
-          code: 'BACKEND_RESOLVE_FAILED'
+            `Conflict resolution requires an authoritative human approval request. No pending approval found for conflict ${id}.`,
+          code: 'APPROVAL_NOT_FOUND',
+          conflictId: id
         },
-        { status: res.status }
+        { status: 404 }
       );
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Network error';
@@ -59,7 +126,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     {
       success: false,
       error:
-        'Backend service unreachable: Conflict resolution requires FastAPI backend persistence at DECISIONTRACE_BACKEND_URL. Mutation aborted.',
+        'Backend service unreachable: Conflict resolutions require FastAPI backend persistence at DECISIONTRACE_BACKEND_URL. Mutation aborted.',
       code: 'BACKEND_OFFLINE',
       conflictId: id
     },
