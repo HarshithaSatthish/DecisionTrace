@@ -42,7 +42,7 @@ def get_readiness(response: Response) -> dict[str, Any]:
         import redis
 
         if settings.REDIS_URL:
-            r = redis.from_url(settings.REDIS_URL, socket_timeout=0.5)
+            r = redis.from_url(settings.REDIS_URL, socket_connect_timeout=0.2, socket_timeout=0.2)
             r.ping()
             deps["redis"] = "connected"
         else:

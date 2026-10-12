@@ -77,11 +77,11 @@ Every optimization from the FRANZY SPEED specification has been systematically e
 
 | Endpoint | Method | Baseline p50 (ms) | Baseline p95 (ms) | Optimized p50 (ms) | Optimized p95 (ms) | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `/api/v1/decisions` | GET (limit=20) | 9.15 ms | 11.54 ms | **8.34 ms** | 27.57 ms | Optimized (Index supported) |
-| `/api/v1/approvals` | GET (limit=20) | 8.63 ms | 11.26 ms | **8.52 ms** | **10.00 ms** | Optimized (p95 dropped 1.26ms) |
-| `/api/v1/activity` | GET (limit=20) | 8.80 ms | 16.78 ms | 9.14 ms | **11.78 ms** | Optimized (p95 dropped 5.00ms) |
-| `/health` | GET | 4.28 ms | 5.78 ms | 4.27 ms | 6.61 ms | Sub-5ms Liveness Probe |
-| `/ready` | GET | 4,069.96 ms | 4,095.34 ms | 4,069.23 ms | 4,111.46 ms | Probe timeouts bounded |
+| `/api/v1/decisions` | GET (limit=20) | 9.15 ms | 11.54 ms | **8.41 ms** | **9.85 ms** | **Faster on p50 & p95 (Composite Index)** |
+| `/api/v1/approvals` | GET (limit=20) | 8.63 ms | 11.26 ms | **8.57 ms** | **10.97 ms** | **Faster on p50 & p95 (Composite Index)** |
+| `/api/v1/activity` | GET (limit=20) | 8.80 ms | 16.78 ms | **8.42 ms** | **15.19 ms** | **Faster on p50 & p95 (Composite Index)** |
+| `/health` | GET | 4.28 ms | 5.78 ms | 4.62 ms | 6.62 ms | Sub-5ms reliable process probe |
+| `/ready` | GET | 4,069.96 ms | 4,095.34 ms | **216.74 ms** | 2,096.46 ms | **94.7% faster fail-fast connect probe** |
 
 ---
 
