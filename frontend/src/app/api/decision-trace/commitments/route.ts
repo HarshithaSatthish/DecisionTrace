@@ -1,24 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { FIXTURE_COMMITMENTS } from '@/features/decision-trace/data/fixtures';
 import { verifyDecisionTraceAuth, isDevPreviewEnabled } from '@/lib/decision-trace-auth';
+import { transformBackendDecisionsToCommitments } from '@/features/decision-trace/api/transformers';
 
 export const dynamic = 'force-dynamic';
-
-interface RawCommitment {
-  id: string | number;
-  title?: string;
-  topic?: string;
-  task?: string;
-  current_commitment?: string;
-  owner?: string;
-  ownerAvatar?: string;
-  due_date?: string;
-  deadline?: string;
-  status?: 'backlog' | 'in_progress' | 'blocked' | 'completed';
-  state?: string;
-  priority?: 'low' | 'medium' | 'high' | 'critical';
-  evidence?: unknown[];
-}
 
 export async function GET(request: NextRequest) {
   const authResult = await verifyDecisionTraceAuth();
@@ -31,44 +16,18 @@ export async function GET(request: NextRequest) {
 
   if (backendUrl) {
     try {
-      let res = await fetch(`${backendUrl}/commitments?${searchParams.toString()}`, {
+      // Backend contract: commitments are derived from /decisions
+      const res = await fetch(`${backendUrl}/decisions?${searchParams.toString()}`, {
         headers: authResult.headers,
         cache: 'no-store'
-      }).catch(() => null);
+      });
 
-      if (!res || !res.ok) {
-        // Fallback to /decisions in Harshitha's architecture where decisions contain current_commitment
-        res = await fetch(`${backendUrl}/decisions?${searchParams.toString()}`, {
-          headers: authResult.headers,
-          cache: 'no-store'
-        }).catch(() => null);
-      }
-
-      if (res && res.ok) {
+      if (res.ok) {
         const raw = await res.json();
-        const items: RawCommitment[] = Array.isArray(raw) ? raw : (raw.items ?? []);
-        const mapped = items.map((d: RawCommitment) => {
-          const topicTitle = (d.topic || 'Commitment')
-            .replace(/_/g, ' ')
-            .replace(/\b\w/g, (c: string) => c.toUpperCase());
-          return {
-            id: String(d.id),
-            title: d.title || topicTitle,
-            task: d.task || d.current_commitment || topicTitle,
-            owner: d.owner || 'Unassigned',
-            ownerAvatar: d.ownerAvatar,
-            deadline: d.due_date || d.deadline || new Date().toISOString(),
-            status: d.status || (d.state === 'active' ? 'in_progress' : 'completed'),
-            priority: d.priority || 'high',
-            relatedDecisionId: String(d.id),
-            relatedDecisionTitle: topicTitle,
-            evidence: Array.isArray(d.evidence) ? d.evidence : [],
-            progressPercentage: d.state === 'active' ? 50 : 100
-          };
-        });
-        return NextResponse.json(mapped);
+        const items = Array.isArray(raw) ? raw : (raw.items ?? []);
+        return NextResponse.json(transformBackendDecisionsToCommitments(items));
       }
-      if (res && (res.status === 401 || res.status === 403)) {
+      if (res.status === 401 || res.status === 403) {
         return NextResponse.json(
           {
             error: res.status === 401 ? 'Unauthorized upstream request' : 'Forbidden upstream request',
@@ -77,7 +36,7 @@ export async function GET(request: NextRequest) {
           { status: res.status }
         );
       }
-      if (res && res.status >= 500) {
+      if (res.status >= 500) {
         return NextResponse.json(
           {
             error: `Upstream FastAPI backend error: HTTP ${res.status}`,

@@ -1,4 +1,4 @@
-import { describe, expect, test, mock } from 'bun:test';
+import { describe, expect, test, mock, afterEach } from 'bun:test';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { NextRequest } from 'next/server';
@@ -22,6 +22,12 @@ describe('Dashboard Layout Security Guardrail Source Audit', () => {
 let mockSessionUser: string | null = null;
 let mockSessionOrg: string | null = null;
 let mockSessionToken: string | null = null;
+
+afterEach(() => {
+  mockSessionUser = null;
+  mockSessionOrg = null;
+  mockSessionToken = null;
+});
 
 mock.module('@clerk/nextjs/server', () => ({
   auth: async () => {
