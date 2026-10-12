@@ -528,7 +528,7 @@ function synthesizeAnalysisResult(
       entityId: d.id,
       entityType: 'decision',
       evidence: d.evidence,
-      statusBadge: d.confidenceLevel.toUpperCase()
+      statusBadge: (d.confidenceLevel || 'high').toUpperCase()
     });
   });
 

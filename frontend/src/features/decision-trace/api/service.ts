@@ -16,8 +16,7 @@ import {
   ConflictResolvePayload,
   ActivityItem,
   ActivityFilters,
-  DashboardMetrics,
-  AttentionItem
+  DashboardMetrics
 } from '../types';
 import {
   FIXTURE_DECISIONS,
@@ -75,9 +74,9 @@ interface CacheEntry<T> {
   data: T;
   expiresAt: number;
 }
-const _clientMemoryCache = new Map<string, CacheEntry<unknown>>();
+const clientMemoryCache = new Map<string, CacheEntry<unknown>>();
 const DEFAULT_CACHE_TTL_MS = 15000;
-let _clientTestScope: string | null = null;
+let clientTestScope: string | null = null;
 
 function isServer(): boolean {
   return typeof window === 'undefined';
@@ -89,14 +88,14 @@ function isServer(): boolean {
  */
 export function setClientCacheScope(scope: string): void {
   if (isServer()) return;
-  if (_clientTestScope !== scope) {
-    _clientMemoryCache.clear();
-    _clientTestScope = scope;
+  if (clientTestScope !== scope) {
+    clientMemoryCache.clear();
+    clientTestScope = scope;
   }
 }
 
 export function invalidateClientCache(): void {
-  _clientMemoryCache.clear();
+  clientMemoryCache.clear();
 }
 
 function getActiveTenantScope(): string | null {
@@ -117,7 +116,7 @@ function getActiveTenantScope(): string | null {
     const org = clerk.organization?.id || clerk.session?.lastActiveOrganizationId || 'personal';
     return `${org}:${clerk.user.id}`;
   }
-  return _clientTestScope;
+  return clientTestScope;
 }
 
 function getFromClientCache<T>(key: string): T | null {
@@ -125,10 +124,10 @@ function getFromClientCache<T>(key: string): T | null {
   const scope = getActiveTenantScope();
   if (!scope) return null; // Do not cache without verified identity
   const scopedKey = `${scope}:${key}`;
-  const entry = _clientMemoryCache.get(scopedKey);
+  const entry = clientMemoryCache.get(scopedKey);
   if (!entry) return null;
   if (Date.now() > entry.expiresAt) {
-    _clientMemoryCache.delete(scopedKey);
+    clientMemoryCache.delete(scopedKey);
     return null;
   }
   return entry.data as T;
@@ -139,7 +138,7 @@ function setInClientCache<T>(key: string, data: T, ttlMs = DEFAULT_CACHE_TTL_MS)
   const scope = getActiveTenantScope();
   if (!scope) return; // Do not cache without verified identity
   const scopedKey = `${scope}:${key}`;
-  _clientMemoryCache.set(scopedKey, { data, expiresAt: Date.now() + ttlMs });
+  clientMemoryCache.set(scopedKey, { data, expiresAt: Date.now() + ttlMs });
 }
 
 /**
@@ -202,7 +201,8 @@ async function getServerAuthHeaders(
   if (typeof window !== 'undefined') {
     return null;
   }
-  if (process.env.TEST_AUTH_USER_ID) {
+  // Mock test authentication is STRICTLY FORBIDDEN and IMPOSSIBLE to activate in production
+  if (process.env.NODE_ENV !== 'production' && process.env.TEST_AUTH_USER_ID) {
     return {
       'Content-Type': 'application/json',
       'X-User-Id': process.env.TEST_AUTH_USER_ID,
@@ -793,7 +793,7 @@ export async function updateCommitmentStatus(
   } catch (err: unknown) {
     clearTimeout(timeoutId);
     if (err instanceof Error) throw err;
-    throw new Error(String(err));
+    throw new Error(String(err), { cause: err });
   }
 }
 
@@ -827,7 +827,7 @@ export async function resolveConflict(
   } catch (err: unknown) {
     clearTimeout(timeoutId);
     if (err instanceof Error) throw err;
-    throw new Error(String(err));
+    throw new Error(String(err), { cause: err });
   }
 }
 
@@ -858,7 +858,7 @@ export async function executeApprovalAction(
   } catch (err: unknown) {
     clearTimeout(timeoutId);
     if (err instanceof Error) throw err;
-    throw new Error(String(err));
+    throw new Error(String(err), { cause: err });
   }
 }
 

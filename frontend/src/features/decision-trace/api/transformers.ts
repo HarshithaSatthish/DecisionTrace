@@ -11,10 +11,127 @@ import {
   ConflictResolutionStatus,
   ApprovalStatus,
   ActivityType,
-  ImpactLevel
+  ImpactLevel,
+  EvidenceReference,
+  ConfidenceLevel
 } from '../types';
 
-export function transformBackendOverview(raw: Record<string, unknown>): DashboardMetrics {
+interface BackendOverviewRaw {
+  active_decisions?: number;
+  activeDecisionsCount?: number;
+  pending_approvals?: number;
+  pendingApprovalsCount?: number;
+  recent_findings?: number;
+  detectedConflictsCount?: number;
+  openCommitmentsCount?: number;
+  attentionItems?: AttentionItem[];
+  decisionTrend?: Array<{ period: string; decisions: number; commitments: number }>;
+  recentActivity?: ActivityItem[];
+  isProductionOffline?: boolean;
+}
+
+interface BackendDecisionRaw {
+  id: string | number;
+  title?: string;
+  topic?: string;
+  summary?: string;
+  whatWasDecided?: string;
+  current_commitment?: string;
+  participants?: string[];
+  owner?: string;
+  created_at?: string;
+  createdAt?: string;
+  updated_at?: string;
+  updatedAt?: string;
+  status?: string;
+  state?: string;
+  sourceConversation?: {
+    id: string;
+    title: string;
+    channel: string;
+    timestamp: string;
+    url?: string;
+  };
+  source_event_id?: string;
+  evidence?: EvidenceReference[];
+  confidence?: number;
+  confidenceLevel?: ConfidenceLevel;
+  relatedCommitmentIds?: string[];
+  category?: string;
+  impactLevel?: ImpactLevel;
+}
+
+interface BackendCommitmentRaw {
+  id: string | number;
+  title?: string;
+  topic?: string;
+  task?: string;
+  current_commitment?: string;
+  owner?: string;
+  ownerAvatar?: string;
+  due_date?: string;
+  deadline?: string;
+  status?: string;
+  state?: string;
+  priority?: 'low' | 'medium' | 'high' | 'critical';
+  evidence?: EvidenceReference[];
+  progressPercentage?: number;
+}
+
+interface BackendFindingRaw {
+  id: string | number;
+  topic_key?: string;
+  classification?: string;
+  severity?: string;
+  confidence?: string;
+  explanation?: string;
+  status?: string;
+  created_at?: string;
+  previous_value?: string;
+  new_value?: string;
+  previousDecision?: Conflict['previousDecision'];
+  newerDecision?: Conflict['newerDecision'];
+  evidence?: Array<{
+    chunk_id?: string;
+    source_time?: string;
+    excerpt?: string;
+    vectorSimilarity?: number;
+    similarity?: number;
+  }>;
+}
+
+interface BackendApprovalRaw {
+  id: string | number;
+  title?: string;
+  exactActionPreview?: string;
+  requester?: string;
+  created_at?: string;
+  status?: string;
+  action_payload?: {
+    topic?: string;
+    new_value?: string;
+    kind?: string;
+  };
+  execution_key?: string;
+  finding_id?: string | number;
+  evidence?: EvidenceReference[];
+}
+
+interface BackendActivityRaw {
+  id: string | number;
+  title?: string;
+  description?: string;
+  type?: ActivityType;
+  action?: string;
+  actor_type?: string;
+  actor_id?: string;
+  actor?: string;
+  entity_type?: 'decision' | 'commitment' | 'conflict' | 'approval' | 'conversation';
+  entity_id?: string;
+  timestamp?: string;
+}
+
+export function transformBackendOverview(raw: BackendOverviewRaw = {}): DashboardMetrics {
   const activeCount = Number(raw.active_decisions ?? raw.activeDecisionsCount ?? 0);
   const pendingCount = Number(raw.pending_approvals ?? raw.pendingApprovalsCount ?? 0);
   const findingsCount = Number(raw.recent_findings ?? raw.detectedConflictsCount ?? 0);
@@ -22,7 +139,7 @@ export function transformBackendOverview(raw: Record<string, unknown>): Dashboar
 
   const attentionItems: AttentionItem[] = [];
   if (Array.isArray(raw.attentionItems) && raw.attentionItems.length > 0) {
-    attentionItems.push(...(raw.attentionItems as AttentionItem[]));
+    attentionItems.push(...raw.attentionItems);
   } else {
     if (pendingCount > 0) {
       attentionItems.push({
@@ -46,14 +163,11 @@ export function transformBackendOverview(raw: Record<string, unknown>): Dashboar
     }
   }
 
-  const decisionTrend = Array.isArray(raw.decisionTrend) && raw.decisionTrend.length > 0
-    ? (raw.decisionTrend as { period: string; decisions: number; commitments: number }[])
-    : [
-        { period: 'Week 1', decisions: Math.max(0, Math.floor(activeCount * 0.25)), commitments: Math.max(0, Math.floor(activeCount * 0.25)) },
-        { period: 'Week 2', decisions: Math.max(0, Math.floor(activeCount * 0.5)), commitments: Math.max(0, Math.floor(activeCount * 0.5)) },
-        { period: 'Week 3', decisions: Math.max(0, Math.floor(activeCount * 0.75)), commitments: Math.max(0, Math.floor(activeCount * 0.75)) },
-        { period: 'Current', decisions: activeCount, commitments: openCommitments }
-      ];
+  // Display unavailable trends honestly as empty array — never fabricate historical data points
+  const decisionTrend =
+    Array.isArray(raw.decisionTrend) && raw.decisionTrend.length > 0
+      ? raw.decisionTrend
+      : [];
 
   return {
     activeDecisionsCount: activeCount,
@@ -62,14 +176,15 @@ export function transformBackendOverview(raw: Record<string, unknown>): Dashboar
     pendingApprovalsCount: pendingCount,
     decisionTrend,
     attentionItems,
-    recentActivity: Array.isArray(raw.recentActivity) ? (raw.recentActivity as ActivityItem[]) : [],
+    recentActivity: Array.isArray(raw.recentActivity) ? raw.recentActivity : [],
     isProductionOffline: Boolean(raw.isProductionOffline ?? false)
   };
 }
 
 export function transformBackendDecisions(items: unknown[]): Decision[] {
   if (!Array.isArray(items)) return [];
-  return items.map((d: any) => {
+  return items.map((rawItem: unknown) => {
+    const d = rawItem as BackendDecisionRaw;
     if (d.whatWasDecided && d.title && d.sourceConversation) {
       return d as Decision;
     }
@@ -77,6 +192,18 @@ export function transformBackendDecisions(items: unknown[]): Decision[] {
       .replace(/_/g, ' ')
       .replace(/\b\w/g, (c: string) => c.toUpperCase());
     const commitmentText = d.current_commitment || topicTitle;
+
+    // Honest confidence handling: only set when provided by backend, never fabricate 95%
+    const confidenceVal = d.confidence != null ? Number(d.confidence) : undefined;
+    const confidenceLevelVal =
+      d.confidenceLevel ||
+      (confidenceVal != null
+        ? confidenceVal >= 80
+          ? 'high'
+          : confidenceVal >= 50
+            ? 'medium'
+            : 'low'
+        : undefined);
 
     return {
       id: String(d.id),
@@ -98,8 +225,8 @@ export function transformBackendDecisions(items: unknown[]): Decision[] {
         timestamp: d.updated_at || d.created_at || new Date().toISOString()
       },
       evidence: Array.isArray(d.evidence) ? d.evidence : [],
-      confidence: d.confidence ?? 95,
-      confidenceLevel: d.confidenceLevel || 'high',
+      confidence: confidenceVal,
+      confidenceLevel: confidenceLevelVal,
       relatedCommitmentIds: d.relatedCommitmentIds || [String(d.id)],
       category: d.category || d.topic || 'Engineering',
       impactLevel: (d.impactLevel || 'high') as ImpactLevel
@@ -109,7 +236,8 @@ export function transformBackendDecisions(items: unknown[]): Decision[] {
 
 export function transformBackendDecisionsToCommitments(items: unknown[]): Commitment[] {
   if (!Array.isArray(items)) return [];
-  return items.map((d: any) => {
+  return items.map((rawItem: unknown) => {
+    const d = rawItem as BackendCommitmentRaw;
     if (d.task && d.owner && d.deadline) {
       return d as Commitment;
     }
@@ -117,6 +245,14 @@ export function transformBackendDecisionsToCommitments(items: unknown[]): Commit
       .replace(/_/g, ' ')
       .replace(/\b\w/g, (c: string) => c.toUpperCase());
     const commitmentText = d.current_commitment || d.task || topicTitle;
+
+    // Honest progress handling: only set when provided, never fabricate 50%
+    const progressVal =
+      d.progressPercentage != null
+        ? Number(d.progressPercentage)
+        : d.status === 'completed'
+          ? 100
+          : undefined;
 
     return {
       id: String(d.id),
@@ -130,7 +266,7 @@ export function transformBackendDecisionsToCommitments(items: unknown[]): Commit
       relatedDecisionId: String(d.id),
       relatedDecisionTitle: topicTitle,
       evidence: Array.isArray(d.evidence) ? d.evidence : [],
-      progressPercentage: d.state === 'active' ? 50 : 100
+      progressPercentage: progressVal
     };
   });
 }
@@ -138,13 +274,17 @@ export function transformBackendDecisionsToCommitments(items: unknown[]): Commit
 export function transformBackendFindingsToConflicts(items: unknown[]): Conflict[] {
   if (!Array.isArray(items)) return [];
   return items
-    .filter((f: any) =>
-      f.previous_value != null ||
-      f.classification === 'possible_conflict' ||
-      f.classification === 'superseding_change' ||
-      f.previousDecision != null
-    )
-    .map((f: any) => {
+    .filter((rawItem: unknown) => {
+      const f = rawItem as BackendFindingRaw;
+      return (
+        f.previous_value != null ||
+        f.classification === 'possible_conflict' ||
+        f.classification === 'superseding_change' ||
+        f.previousDecision != null
+      );
+    })
+    .map((rawItem: unknown) => {
+      const f = rawItem as BackendFindingRaw;
       if (f.previousDecision && f.newerDecision) {
         return f as Conflict;
       }
@@ -153,6 +293,20 @@ export function transformBackendFindingsToConflicts(items: unknown[]): Conflict[
         .replace(/\b\w/g, (c: string) => c.toUpperCase());
       const ev1 = f.evidence?.[0];
       const ev2 = f.evidence?.[1] || ev1;
+
+      // Honest vector similarity: only set when provided by Qdrant/backend, never fabricate 0.94 / 0.96
+      const sim1 =
+        ev1?.vectorSimilarity != null
+          ? Number(ev1.vectorSimilarity)
+          : ev1?.similarity != null
+            ? Number(ev1.similarity)
+            : undefined;
+      const sim2 =
+        ev2?.vectorSimilarity != null
+          ? Number(ev2.vectorSimilarity)
+          : ev2?.similarity != null
+            ? Number(ev2.similarity)
+            : undefined;
 
       return {
         id: String(f.id),
@@ -176,7 +330,7 @@ export function transformBackendFindingsToConflicts(items: unknown[]): Conflict[
             speakerOrAuthor: 'Team Member',
             timestamp: ev1?.source_time || f.created_at || new Date().toISOString(),
             quote: ev1?.excerpt || f.previous_value || 'Original agreement quote',
-            vectorSimilarity: 0.94
+            vectorSimilarity: sim1
           }
         },
         newerDecision: {
@@ -192,7 +346,7 @@ export function transformBackendFindingsToConflicts(items: unknown[]): Conflict[
             speakerOrAuthor: 'Team Member',
             timestamp: ev2?.source_time || f.created_at || new Date().toISOString(),
             quote: ev2?.excerpt || f.new_value || 'New statement quote',
-            vectorSimilarity: 0.96
+            vectorSimilarity: sim2
           }
         }
       };
@@ -201,7 +355,8 @@ export function transformBackendFindingsToConflicts(items: unknown[]): Conflict[
 
 export function transformBackendApprovals(items: unknown[]): ApprovalRequest[] {
   if (!Array.isArray(items)) return [];
-  return items.map((r: any) => {
+  return items.map((rawItem: unknown) => {
+    const r = rawItem as BackendApprovalRaw;
     if (r.exactActionPreview && r.title) {
       return r as ApprovalRequest;
     }
@@ -230,7 +385,8 @@ export function transformBackendApprovals(items: unknown[]): ApprovalRequest[] {
 
 export function transformBackendActivity(items: unknown[]): ActivityItem[] {
   if (!Array.isArray(items)) return [];
-  return items.map((a: any) => {
+  return items.map((rawItem: unknown) => {
+    const a = rawItem as BackendActivityRaw;
     if (a.title && a.description && a.type) {
       return a as ActivityItem;
     }

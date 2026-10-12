@@ -7,9 +7,33 @@ import {
   getApprovals,
   getActivity,
   DecisionTraceApiError,
-  setClientCacheScope,
   invalidateClientCache
 } from '@/features/decision-trace/api/service';
+
+let mockSessionUser: string | null = 'test_user_resilience';
+let mockSessionOrg: string | null = 'test_org_resilience';
+let mockSessionToken: string | null = 'test_clerk_jwt_token';
+
+mock.module('@clerk/nextjs/server', () => ({
+  auth: async () => {
+    if (!mockSessionUser) {
+      return {
+        userId: null,
+        orgId: null,
+        getToken: async () => null,
+        protect: async () => {
+          throw new Error('REDIRECT_TO_SIGN_IN');
+        }
+      };
+    }
+    return {
+      userId: mockSessionUser,
+      orgId: mockSessionOrg,
+      getToken: async () => mockSessionToken,
+      protect: async () => ({ userId: mockSessionUser, orgId: mockSessionOrg })
+    };
+  }
+}));
 
 describe('Production API Error Resilience & Tenant Cache Isolation Audit', () => {
   const originalFetch = globalThis.fetch;
@@ -21,7 +45,10 @@ describe('Production API Error Resilience & Tenant Cache Isolation Audit', () =>
   beforeEach(() => {
     (process.env as Record<string, string | undefined>).NODE_ENV = 'production';
     process.env.DECISIONTRACE_BACKEND_URL = 'http://localhost:8000/api/v1';
-    process.env.TEST_AUTH_USER_ID = 'test_user_default';
+    mockSessionUser = 'test_user_resilience';
+    mockSessionOrg = 'test_org_resilience';
+    mockSessionToken = 'test_clerk_jwt_token';
+    delete process.env.TEST_AUTH_USER_ID;
     delete process.env.NEXT_PUBLIC_DECISIONTRACE_DEMO_PREVIEW;
     invalidateClientCache();
   });
@@ -39,6 +66,9 @@ describe('Production API Error Resilience & Tenant Cache Isolation Audit', () =>
 
     if (originalTestUser !== undefined) process.env.TEST_AUTH_USER_ID = originalTestUser;
     else delete process.env.TEST_AUTH_USER_ID;
+    mockSessionUser = null;
+    mockSessionOrg = null;
+    mockSessionToken = null;
 
     invalidateClientCache();
   });
@@ -83,9 +113,18 @@ describe('Production API Error Resilience & Tenant Cache Isolation Audit', () =>
     });
 
     test('rejects unauthenticated request on server when no session headers are available', async () => {
-      delete process.env.TEST_AUTH_USER_ID;
+      mockSessionUser = null;
       await expect(getDashboardMetrics()).rejects.toThrow('Authentication required');
       await expect(getDecisions()).rejects.toThrow('Authentication required');
+    });
+
+    test('setting TEST_AUTH_USER_ID is strictly ignored and impossible to activate in production', async () => {
+      mockSessionUser = null;
+      process.env.TEST_AUTH_USER_ID = 'malicious_mock_user';
+      (process.env as Record<string, string | undefined>).NODE_ENV = 'production';
+
+      await expect(getDecisions()).rejects.toThrow('Authentication required');
+      await expect(getDashboardMetrics()).rejects.toThrow('Authentication required');
     });
   });
 
