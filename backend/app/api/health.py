@@ -37,23 +37,30 @@ def get_readiness(response: Response) -> dict[str, Any]:
         deps["database"] = f"unhealthy: {type(e).__name__}"
         is_healthy = False
 
-    # 2. Redis check
+    # 2. Redis check (fast 0.5s probe)
     try:
         import redis
 
-        r = redis.from_url(settings.REDIS_URL, socket_timeout=1.0)
-        r.ping()
-        deps["redis"] = "connected"
+        if settings.REDIS_URL:
+            r = redis.from_url(settings.REDIS_URL, socket_timeout=0.5)
+            r.ping()
+            deps["redis"] = "connected"
+        else:
+            deps["redis"] = "not_configured"
     except Exception as e:
         deps["redis"] = f"unreachable: {type(e).__name__}"
-        # Redis unreachability in local dev is non-fatal for pure API readiness if falling back
 
-    # 3. Qdrant check
+    # 3. Qdrant check (fast 0.5s probe with check_compatibility=False)
     try:
         from qdrant_client import QdrantClient
 
-        if settings.QDRANT_URL:
-            qc = QdrantClient(url=settings.QDRANT_URL, api_key=settings.QDRANT_API_KEY, timeout=1.0)
+        if settings.QDRANT_URL and not settings.QDRANT_URL.startswith("memory"):
+            qc = QdrantClient(
+                url=settings.QDRANT_URL,
+                api_key=settings.QDRANT_API_KEY,
+                timeout=0.5,
+                check_compatibility=False,
+            )
             qc.get_collections()
             deps["qdrant"] = "connected"
         else:

@@ -29,10 +29,19 @@ export function DecisionsTable({ initialDecisions, initialCommitments }: Decisio
   const [selectedDecision, setSelectedDecision] = useState<Decision | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
+  // FRANZY #12: Table list pagination to bound client DOM weight
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+
   const categories = useMemo(() => {
     const set = new Set(initialDecisions.map((d) => d.category));
     return ['all', ...Array.from(set)];
   }, [initialDecisions]);
+
+  // Reset to page 1 on filter/search change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [search, statusFilter, categoryFilter]);
 
   const filteredDecisions = useMemo(() => {
     return initialDecisions.filter((decision) => {
@@ -49,6 +58,12 @@ export function DecisionsTable({ initialDecisions, initialCommitments }: Decisio
       return matchesSearch && matchesStatus && matchesCategory;
     });
   }, [initialDecisions, search, statusFilter, categoryFilter]);
+
+  const totalPages = Math.ceil(filteredDecisions.length / pageSize) || 1;
+  const paginatedDecisions = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredDecisions.slice(start, start + pageSize);
+  }, [filteredDecisions, currentPage, pageSize]);
 
   const handleRowClick = (decision: Decision) => {
     setSelectedDecision(decision);
@@ -123,7 +138,7 @@ export function DecisionsTable({ initialDecisions, initialCommitments }: Decisio
                 </TableCell>
               </TableRow>
             ) : (
-              filteredDecisions.map((decision) => (
+              paginatedDecisions.map((decision) => (
                 <TableRow
                   key={decision.id}
                   onClick={() => handleRowClick(decision)}
@@ -216,6 +231,50 @@ export function DecisionsTable({ initialDecisions, initialCommitments }: Decisio
             )}
           </TableBody>
         </Table>
+
+        {/* FRANZY #12: Pagination Bar */}
+        {filteredDecisions.length > 0 && (
+          <div className='flex flex-col sm:flex-row items-center justify-between gap-2 px-4 py-3 border-t border-border/80 bg-muted/10 text-xs text-muted-foreground'>
+            <div>
+              Showing{' '}
+              <span className='font-semibold text-foreground tabular-nums'>
+                {(currentPage - 1) * pageSize + 1}
+              </span>{' '}
+              to{' '}
+              <span className='font-semibold text-foreground tabular-nums'>
+                {Math.min(currentPage * pageSize, filteredDecisions.length)}
+              </span>{' '}
+              of{' '}
+              <span className='font-semibold text-foreground tabular-nums'>
+                {filteredDecisions.length}
+              </span>{' '}
+              decisions
+            </div>
+            <div className='flex items-center gap-2'>
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage <= 1}
+                className='h-7 px-2.5 text-xs'
+              >
+                Previous
+              </Button>
+              <span className='tabular-nums px-1'>
+                Page {currentPage} of {totalPages}
+              </span>
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+                className='h-7 px-2.5 text-xs'
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Detail Drawer */}

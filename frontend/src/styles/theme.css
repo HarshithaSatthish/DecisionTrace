@@ -15,8 +15,23 @@ body {
   @apply overscroll-none;
 }
 
+
 :root {
   --header-height: calc(var(--spacing, 0.25rem) * 12 + 1px);
+  /* Fallback definitions for theme-specific fonts to preserve theme switcher without downloading 16 webfonts */
+  --font-outfit: var(--font-sans), system-ui, sans-serif;
+  --font-google-sans-flex: var(--font-sans), system-ui, sans-serif;
+  --font-fira-code: var(--font-mono), monospace;
+  --font-source-code-pro: var(--font-mono), monospace;
+  --font-jetbrains-mono: var(--font-mono), monospace;
+  --font-merriweather: ui-serif, Georgia, serif;
+  --font-playfair-display: ui-serif, Georgia, serif;
+  --font-architects-daughter: var(--font-sans), cursive;
+  --font-dm-sans: var(--font-sans), sans-serif;
+  --font-instrument: var(--font-sans), sans-serif;
+  --font-noto-mono: var(--font-mono), monospace;
+  --font-mullish: var(--font-sans), sans-serif;
+  --font-space-mono: var(--font-mono), monospace;
 }
 
 /* Apply theme fonts to body for all themes */

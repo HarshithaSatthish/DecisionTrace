@@ -39,13 +39,52 @@ export const EMPTY_METRICS: DashboardMetrics = {
   isProductionOffline: true
 };
 
+
+// ----------------------------------------------------------------------------
+// FRANZY #8 & #9: Per-User Ephemeral In-Memory Client Cache
+// 15s TTL for read-only query deduplication with automatic invalidation on mutations.
+// Never persists execution keys or tokens, never shared across browser sessions.
+// ----------------------------------------------------------------------------
+interface CacheEntry<T> {
+  data: T;
+  expiresAt: number;
+}
+const _clientMemoryCache = new Map<string, CacheEntry<unknown>>();
+const DEFAULT_CACHE_TTL_MS = 15000;
+
+export function invalidateClientCache(): void {
+  _clientMemoryCache.clear();
+}
+
+function getFromClientCache<T>(key: string): T | null {
+  if (typeof window === 'undefined') return null;
+  const entry = _clientMemoryCache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    _clientMemoryCache.delete(key);
+    return null;
+  }
+  return entry.data as T;
+}
+
+function setInClientCache<T>(key: string, data: T, ttlMs = DEFAULT_CACHE_TTL_MS): void {
+  if (typeof window === 'undefined') return;
+  _clientMemoryCache.set(key, { data, expiresAt: Date.now() + ttlMs });
+}
+
 // Helper to determine if we should attempt direct FastAPI backend or proxy handler
 export async function getDashboardMetrics(): Promise<DashboardMetrics> {
+  const cacheKey = 'metrics:overview';
+  const cached = getFromClientCache<DashboardMetrics>(cacheKey);
+  if (cached) return cached;
+
   try {
     if (typeof window !== 'undefined') {
       const res = await fetch('/api/decision-trace/metrics');
       if (res.ok) {
-        return (await res.json()) as DashboardMetrics;
+        const data = (await res.json()) as DashboardMetrics;
+        setInClientCache(cacheKey, data);
+        return data;
       }
     } else {
       const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
@@ -74,11 +113,17 @@ export async function getDecisions(filters?: DecisionFilters): Promise<Decision[
     if (filters?.category && filters.category !== 'all') params.set('category', filters.category);
     const qs = params.toString() ? `?${params.toString()}` : '';
 
+    const cacheKey = `decisions:${qs}`;
+    const cached = getFromClientCache<Decision[]>(cacheKey);
+    if (cached) return cached;
+
     if (typeof window !== 'undefined') {
       const res = await fetch(`/api/decision-trace/decisions${qs}`);
       if (res.ok) {
         const data = await res.json();
-        return Array.isArray(data) ? data : (data.items ?? []);
+        const items = Array.isArray(data) ? data : (data.items ?? []);
+        setInClientCache(cacheKey, items);
+        return items;
       }
     } else {
       const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
@@ -258,6 +303,8 @@ export async function resolveConflict(
         body.detail || body.error || `Conflict resolution failed with HTTP ${res.status}`
       );
     }
+    // Explicit cache bust on state mutation
+    invalidateClientCache();
     return body;
   } catch (err: unknown) {
     clearTimeout(timeoutId);
@@ -274,11 +321,17 @@ export async function getApprovals(filters?: ApprovalFilters): Promise<ApprovalR
     if (filters?.status && filters.status !== 'all') params.set('status', filters.status);
     const qs = params.toString() ? `?${params.toString()}` : '';
 
+    const cacheKey = `approvals:${qs}`;
+    const cached = getFromClientCache<ApprovalRequest[]>(cacheKey);
+    if (cached) return cached;
+
     if (typeof window !== 'undefined') {
       const res = await fetch(`/api/decision-trace/approvals${qs}`);
       if (res.ok) {
         const data = await res.json();
-        return Array.isArray(data) ? data : (data.items ?? []);
+        const items = Array.isArray(data) ? data : (data.items ?? []);
+        setInClientCache(cacheKey, items);
+        return items;
       }
     } else {
       const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
@@ -335,6 +388,9 @@ export async function executeApprovalAction(
         `Backend approval endpoint failed: HTTP ${res.status} ${res.statusText}. Action aborted.`;
       throw new Error(errorMessage);
     }
+
+    // Explicit cache bust on state mutation
+    invalidateClientCache();
 
     return responseData;
   } catch (err: unknown) {

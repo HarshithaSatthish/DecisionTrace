@@ -64,3 +64,6 @@ qdrant_storage/
 /frontend/**/__pycache__/
 /frontend/**/.pytest_cache/
 /frontend/tsconfig.tsbuildinfo
+
+# Performance benchmark raw dumps
+docs/performance/*_signin_*.json

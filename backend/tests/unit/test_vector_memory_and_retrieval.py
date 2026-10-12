@@ -102,3 +102,17 @@ def test_multitenant_isolation_and_conversation_exclusion():
     )
     # Must NOT return conv_1 chunks!
     assert len(res_excluded) == 0
+
+
+def test_production_mode_raises_when_qdrant_unreachable(monkeypatch):
+    """Verify that in production, unreachable Qdrant raises RuntimeError instead of falling back to :memory:."""
+    import pytest
+    from app.core.config import settings
+    import app.services.memory as mem_service
+
+    monkeypatch.setattr(settings, "APP_ENV", "production")
+    monkeypatch.setattr(settings, "QDRANT_URL", "http://non-existent-cluster.invalid:6333")
+    monkeypatch.setattr(mem_service, "_qdrant_client", None)
+
+    with pytest.raises(RuntimeError, match="Remote Qdrant unavailable in production"):
+        mem_service.get_qdrant_client()
