@@ -116,29 +116,41 @@ class LyzrAgentAdapter:
             resp.raise_for_status()
             data = resp.json()
 
-            # Handle response wrapping
+            # Handle response wrapping and preserve genuine run reference
             raw_text = data.get("response") if isinstance(data, dict) and "response" in data else data
+            parsed_dict = None
             if isinstance(raw_text, str):
                 trimmed = raw_text.strip()
                 try:
-                    return json.loads(trimmed)
+                    parsed_dict = json.loads(trimmed)
                 except json.JSONDecodeError:
                     # Markdown block regex
                     match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", trimmed, re.IGNORECASE)
                     if match:
                         try:
-                            return json.loads(match.group(1).strip())
+                            parsed_dict = json.loads(match.group(1).strip())
                         except json.JSONDecodeError:
                             pass
-                    # Outer curly braces
-                    fb = trimmed.find("{")
-                    lb = trimmed.rfind("}")
-                    if fb != -1 and lb != -1 and lb > fb:
-                        try:
-                            return json.loads(trimmed[fb:lb+1])
-                        except json.JSONDecodeError:
-                            pass
-            return data
+                    if parsed_dict is None:
+                        # Outer curly braces
+                        fb = trimmed.find("{")
+                        lb = trimmed.rfind("}")
+                        if fb != -1 and lb != -1 and lb > fb:
+                            try:
+                                parsed_dict = json.loads(trimmed[fb:lb+1])
+                            except json.JSONDecodeError:
+                                pass
+            elif isinstance(raw_text, dict):
+                parsed_dict = dict(raw_text)
+
+            res_obj = parsed_dict if isinstance(parsed_dict, dict) else (data if isinstance(data, dict) else {})
+            if isinstance(data, dict):
+                run_ref = data.get("run_id") or data.get("session_id") or data.get("chat_id")
+                if run_ref and isinstance(res_obj, dict):
+                    res_obj["run_reference"] = str(run_ref)
+                if "stages" in data and isinstance(data["stages"], list) and isinstance(res_obj, dict):
+                    res_obj["stage_events"] = data["stages"]
+            return res_obj
 
     def _validate_and_sanitize(
         self,

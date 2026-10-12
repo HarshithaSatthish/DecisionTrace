@@ -37,15 +37,27 @@ def get_queue() -> Queue:
 
 
 def enqueue_conversation_job(conversation_id_str: str, job_id_str: str):
-    """Enqueue conversation processing task with JSON arguments."""
+    """Enqueue conversation processing task with deterministic ID and deduplication guard."""
     try:
         q = get_queue()
+        from rq.job import Job
         from app.workers.jobs import process_conversation_job
+
+        job_rq_id = f"job_{job_id_str}"
+        # Deduplication check: if job is already queued or active in RQ, return existing job without creating duplicate
+        try:
+            existing_job = Job.fetch(job_rq_id, connection=q.connection)
+            if existing_job and existing_job.get_status() in ["queued", "started", "deferred"]:
+                logger.info(f"RQ Job {job_rq_id} already active with status '{existing_job.get_status()}'. Avoiding duplicate enqueue.")
+                return existing_job
+        except Exception:
+            pass  # Job not found in Redis, safe to enqueue
 
         job = q.enqueue(
             process_conversation_job,
             conversation_id_str,
             job_id_str,
+            job_id=job_rq_id,
             job_timeout=300,
             result_ttl=86400,
             failure_ttl=86400,

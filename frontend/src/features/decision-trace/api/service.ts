@@ -16,7 +16,11 @@ import {
   ConflictResolvePayload,
   ActivityItem,
   ActivityFilters,
-  DashboardMetrics
+  DashboardMetrics,
+  OmiConversation,
+  OmiConversationDetail,
+  OmiIntegrationStatus,
+  OmiLinkResult
 } from '../types';
 import {
   FIXTURE_DECISIONS,
@@ -33,7 +37,9 @@ import {
   transformBackendDecisionsToCommitments,
   transformBackendFindingsToConflicts,
   transformBackendApprovals,
-  transformBackendActivity
+  transformBackendActivity,
+  transformBackendConversations,
+  transformBackendConversationDetail
 } from './transformers';
 
 export const EMPTY_METRICS: DashboardMetrics = {
@@ -929,4 +935,149 @@ function filterFixtureActivity(filters?: ActivityFilters): ActivityItem[] {
     );
   }
   return result;
+}
+
+
+// ============================================================================
+// Omi Conversations & Integration Services
+// ============================================================================
+export async function getConversations(
+  filters?: { limit?: number; offset?: number },
+  options?: { authHeaders?: Record<string, string> }
+): Promise<OmiConversation[]> {
+  const qs = filters?.limit ? `?limit=${filters.limit}&offset=${filters.offset || 0}` : '';
+  const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
+
+  if (!backendUrl) {
+    return [];
+  }
+
+  if (isServer()) {
+    try {
+      return await fetchBackendOnServer(
+        `/conversations${qs}`,
+        (raw) => {
+          const items = Array.isArray(raw)
+            ? raw
+            : ((raw as { items?: unknown[] })?.items ?? []);
+          return transformBackendConversations(items);
+        },
+        options
+      );
+    } catch (error) {
+      if (isDevPreviewEnabled()) return [];
+      throw error;
+    }
+  }
+
+  // Client-side fetch
+  const cacheKey = `conversations:${qs}`;
+  const cached = getFromClientCache<OmiConversation[]>(cacheKey);
+  if (cached !== null) return cached;
+
+  try {
+    const raw = await fetchClientEndpoint<unknown>(`/api/decision-trace/conversations${qs}`);
+    const items = Array.isArray(raw) ? raw : ((raw as { items?: unknown[] })?.items ?? []);
+    const data = transformBackendConversations(items);
+    setInClientCache(cacheKey, data);
+    return data;
+  } catch (error) {
+    if (isDevPreviewEnabled()) return [];
+    throw error;
+  }
+}
+
+export async function getConversationDetail(
+  id: string,
+  options?: { authHeaders?: Record<string, string> }
+): Promise<OmiConversationDetail> {
+  const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
+  if (!backendUrl) {
+    throw new Error('Backend URL is not configured');
+  }
+
+  if (isServer()) {
+    return await fetchBackendOnServer(
+      `/conversations/${id}`,
+      (raw) => transformBackendConversationDetail(raw),
+      options
+    );
+  }
+
+  const raw = await fetchClientEndpoint<unknown>(`/api/decision-trace/conversations/${id}`);
+  return transformBackendConversationDetail(raw);
+}
+
+export async function getOmiIntegrationStatus(options?: {
+  authHeaders?: Record<string, string>;
+}): Promise<OmiIntegrationStatus> {
+  const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
+  if (!backendUrl) {
+    return { connected: false };
+  }
+
+  if (isServer()) {
+    try {
+      return await fetchBackendOnServer(
+        `/integrations/omi/status`,
+        (raw) => {
+          const r = (raw || {}) as Record<string, unknown>;
+          return {
+            connected: Boolean(r.connected),
+            installationId: r.installation_id ? String(r.installation_id) : undefined,
+            externalOmiUid: r.external_omi_uid ? String(r.external_omi_uid) : undefined,
+            createdAt: r.created_at ? String(r.created_at) : undefined,
+            webhookUrl: r.webhook_url ? String(r.webhook_url) : undefined
+          };
+        },
+        options
+      );
+    } catch (error) {
+      if (isDevPreviewEnabled()) return { connected: false };
+      throw error;
+    }
+  }
+
+  const raw = await fetchClientEndpoint<unknown>(`/api/decision-trace/integrations/omi/status`);
+  const r = (raw || {}) as Record<string, unknown>;
+  return {
+    connected: Boolean(r.connected),
+    installationId: r.installation_id ? String(r.installation_id) : undefined,
+    externalOmiUid: r.external_omi_uid ? String(r.external_omi_uid) : undefined,
+    createdAt: r.created_at ? String(r.created_at) : undefined,
+    webhookUrl: r.webhook_url ? String(r.webhook_url) : undefined
+  };
+}
+
+export async function linkOmiIntegration(externalOmiUid?: string): Promise<OmiLinkResult> {
+  invalidateClientCache();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+  try {
+    const res = await fetch(`/api/decision-trace/integrations/omi`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ external_omi_uid: externalOmiUid }),
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(
+        body.error || body.detail || `Failed to link Omi integration with status ${res.status}`
+      );
+    }
+    return {
+      installationId: body.installation_id,
+      webhookToken: body.webhook_token,
+      webhookUrl: body.webhook_url,
+      message: body.message || 'Omi integration configured successfully'
+    };
+  } catch (err: unknown) {
+    clearTimeout(timeoutId);
+    if (err instanceof Error) throw err;
+    throw new Error(String(err), { cause: err });
+  }
 }

@@ -14,6 +14,10 @@ from app.services.memory import generate_embeddings, get_qdrant_client
 logger = logging.getLogger(__name__)
 
 
+class RetrievalError(RuntimeError):
+    """Raised when vector retrieval encounters an unexpected error or backend outage."""
+
+
 def retrieve_prior_evidence(
     user_id: uuid.UUID,
     exclude_conversation_id: uuid.UUID,
@@ -22,14 +26,18 @@ def retrieve_prior_evidence(
     score_threshold: float = 0.5,
     client: QdrantClient | None = None,
 ) -> list[HistoricalEvidenceInput]:
-    """Search prior evidence chunks in Qdrant scoped to user_id, excluding current conversation."""
+    """Search prior evidence chunks in Qdrant scoped to user_id, excluding current conversation.
+    
+    Distinguishes genuine empty retrieval results (0 hits) from Qdrant outages and query errors.
+    Propagates retryable RetrievalError when Qdrant fails, never pretending retrieval succeeded.
+    """
     if not query_text or not query_text.strip():
         return []
 
     qc = client or get_qdrant_client()
     query_vectors = generate_embeddings([query_text])
     if not query_vectors:
-        return []
+        raise RetrievalError("Failed to generate embedding vector for query text")
 
     query_vector = query_vectors[0]
 
@@ -59,8 +67,8 @@ def retrieve_prior_evidence(
         )
         scored_points = search_result.points
     except Exception as e:
-        logger.warning(f"Error querying Qdrant: {e}")
-        return []
+        logger.error(f"Vector retrieval failed from Qdrant: {e}")
+        raise RetrievalError(f"Vector retrieval failed from Qdrant: {e}") from e
 
     evidence_items: list[HistoricalEvidenceInput] = []
     for hit in scored_points:

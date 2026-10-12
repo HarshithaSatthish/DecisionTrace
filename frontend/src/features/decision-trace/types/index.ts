@@ -206,3 +206,47 @@ export interface ConflictResolvePayload {
   action: 'resolve' | 'escalate' | 'dismiss';
   rationale: string;
 }
+
+
+// ============================================================================
+// Omi Conversations & Integration Types
+// ============================================================================
+export type ConversationProcessingStatus = 'pending' | 'processing' | 'processed' | 'failed';
+
+export interface OmiConversation {
+  id: string;
+  sourceEventId?: string;
+  title?: string;
+  overview?: string;
+  transcriptPreview: string;
+  sourceTime: string;
+  createdAt: string;
+  status: ConversationProcessingStatus;
+}
+
+export interface OmiConversationChunk {
+  id: string;
+  excerpt: string;
+  vectorPointId?: string;
+  sourceTime?: string;
+}
+
+export interface OmiConversationDetail extends OmiConversation {
+  normalizedTranscript: string;
+  chunks: OmiConversationChunk[];
+}
+
+export interface OmiIntegrationStatus {
+  connected: boolean;
+  installationId?: string;
+  externalOmiUid?: string;
+  createdAt?: string;
+  webhookUrl?: string;
+}
+
+export interface OmiLinkResult {
+  installationId: string;
+  webhookToken: string;
+  webhookUrl: string;
+  message: string;
+}

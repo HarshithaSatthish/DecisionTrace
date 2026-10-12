@@ -68,7 +68,10 @@ def check_fastembed() -> dict:
 
 def check_redis_rq() -> dict:
     """Verify Redis connection and RQ Queue."""
-    print(f"[4/4] Checking Redis / RQ ({settings.REDIS_URL})...")
+    from urllib.parse import urlparse
+    parsed_r = urlparse(settings.REDIS_URL)
+    sanitized_r = f"{parsed_r.scheme}://{parsed_r.hostname or 'localhost'}:{parsed_r.port or 6379}{parsed_r.path}"
+    print(f"[4/4] Checking Redis / RQ ({sanitized_r})...")
     try:
         conn = get_redis_connection()
         conn.ping()

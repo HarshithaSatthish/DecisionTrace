@@ -262,3 +262,137 @@ def test_clarify_request(db_session: Session, test_user: User):
     assert resp.status == "clarified"
     db_session.refresh(finding)
     assert finding.status == "clarified"
+
+
+def test_cross_user_target_decision_authorization_fails_with_403(db_session: Session, test_user: User):
+    """Ensure every referenced target decision belongs to the authenticated user.
+    Cross-user target decision references must fail with HTTP 403 Forbidden.
+    """
+    import pytest
+    from fastapi import HTTPException
+    
+    # Create User B
+    user_b = User(clerk_id="user_clerk_other", email="other@test.com")
+    db_session.add(user_b)
+    db_session.commit()
+    db_session.refresh(user_b)
+
+    now = utc_now()
+    # User B owns Decision B
+    decision_b = Decision(
+        user_id=user_b.id,
+        topic="restricted_policy",
+        current_commitment="Only User B can touch this",
+        state="active",
+        version=1,
+        created_at=now,
+        updated_at=now,
+    )
+    db_session.add(decision_b)
+    db_session.commit()
+    db_session.refresh(decision_b)
+
+    # Test User (User A) has a finding
+    finding_a = Finding(
+        user_id=test_user.id,
+        conversation_id=uuid.uuid4(),
+        classification="superseding_change",
+        topic_key="restricted_policy",
+        new_value="Malicious overwrite by User A",
+        explanation="Attempting cross-user mutation",
+        confidence="high",
+        status="pending_approval",
+        created_at=now,
+    )
+    db_session.add(finding_a)
+    db_session.flush()
+
+    exec_key = "exec_key_cross_tenant"
+    # Approval payload references Decision B belonging to User B!
+    approval_req = ApprovalRequest(
+        user_id=test_user.id,
+        finding_id=finding_a.id,
+        status="pending",
+        action_payload={
+            "kind": "request_decision_update",
+            "target_decision_id": str(decision_b.id),
+            "new_value": "Malicious overwrite by User A",
+        },
+        requester="agent",
+        execution_key=exec_key,
+        created_at=now,
+    )
+    db_session.add(approval_req)
+    db_session.commit()
+
+    # User A attempts to execute approval targeting User B's decision
+    with pytest.raises(HTTPException) as exc_info:
+        ApprovalService.approve(
+            session=db_session,
+            user_id=test_user.id,
+            approval_id=approval_req.id,
+            execution_key=exec_key,
+            approver_clerk_id=test_user.clerk_id,
+        )
+    assert exc_info.value.status_code == 403
+    assert "Cross-tenant mutation forbidden" in exc_info.value.detail
+
+    # Verify Decision B was NOT mutated
+    db_session.refresh(decision_b)
+    assert decision_b.current_commitment == "Only User B can touch this"
+    assert decision_b.version == 1
+
+
+def test_concurrent_approval_collision_returns_409(db_session: Session, test_user: User):
+    """Simulate concurrent approval resolution race condition."""
+    import pytest
+    from fastapi import HTTPException
+    
+    now = utc_now()
+    finding = Finding(
+        user_id=test_user.id,
+        conversation_id=uuid.uuid4(),
+        classification="new_commitment",
+        topic_key="infra_migration",
+        new_value="Completed by Friday",
+        explanation="Agreed",
+        confidence="high",
+        status="pending_approval",
+        created_at=now,
+    )
+    db_session.add(finding)
+    db_session.flush()
+
+    exec_key = "exec_key_concurrent_01"
+    approval_req = ApprovalRequest(
+        user_id=test_user.id,
+        finding_id=finding.id,
+        status="pending",
+        action_payload={"kind": "create_decision", "topic": "infra_migration", "new_value": "Completed by Friday"},
+        requester="agent",
+        execution_key=exec_key,
+        created_at=now,
+    )
+    db_session.add(approval_req)
+    db_session.commit()
+
+    # First concurrent request succeeds
+    res1 = ApprovalService.approve(
+        session=db_session,
+        user_id=test_user.id,
+        approval_id=approval_req.id,
+        execution_key=exec_key,
+        approver_clerk_id=test_user.clerk_id,
+    )
+    assert res1.status == "approved"
+
+    # Second concurrent request with the same approval_req must be rejected with HTTP 409 Conflict
+    with pytest.raises(HTTPException) as exc_info:
+        ApprovalService.approve(
+            session=db_session,
+            user_id=test_user.id,
+            approval_id=approval_req.id,
+            execution_key=exec_key,
+            approver_clerk_id=test_user.clerk_id,
+        )
+    assert exc_info.value.status_code == 409
