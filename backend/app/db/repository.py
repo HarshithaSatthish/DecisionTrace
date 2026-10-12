@@ -3,6 +3,7 @@
 import uuid
 from typing import Any
 
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from app.db.models import (
@@ -15,15 +16,31 @@ from app.db.models import (
 
 
 def get_or_create_user(session: Session, clerk_id: str, email: str | None = None) -> User:
-    """Find existing user by clerk_id or create a new user record."""
+    """Find existing user by clerk_id or create a new user record.
+
+    Uses a nested transaction (SAVEPOINT) to safely recover from concurrent
+    creation races without leaving the session in a failed transaction state.
+    """
     statement = select(User).where(User.clerk_id == clerk_id)
     user = session.exec(statement).first()
-    if not user:
-        user = User(clerk_id=clerk_id, email=email)
-        session.add(user)
+    if user:
+        return user
+
+    try:
+        with session.begin_nested():
+            user = User(clerk_id=clerk_id, email=email)
+            session.add(user)
+            session.flush()
         session.commit()
         session.refresh(user)
-    return user
+        return user
+    except IntegrityError:
+        # A concurrent request created the user first; query the committed record
+        user = session.exec(statement).first()
+        if user:
+            return user
+        # Re-raise if the error was not a recoverable conflict for this clerk_id
+        raise
 
 
 def get_integration_by_token_hash(session: Session, token_hash: str) -> OmiIntegration | None:
