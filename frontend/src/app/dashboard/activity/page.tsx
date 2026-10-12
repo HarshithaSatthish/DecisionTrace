@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Activity Guardian Stream — DecisionTrace',
+  title: 'Activity',
   description:
     'Chronological timeline of conversations processed, decisions extracted, conflicts detected, and approvals'
 };

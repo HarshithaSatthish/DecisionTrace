@@ -24,6 +24,13 @@ export const metadata: Metadata = {
   },
   description:
     'Autonomous Decision & Commitment Guardian — Track decisions, monitor commitments, detect conflicts and govern automated approvals.',
+  icons: {
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: 'any' }
+    ],
+    apple: '/favicon.svg'
+  },
   openGraph: {
     title: 'DecisionTrace — Autonomous Decision & Commitment Guardian',
     description:

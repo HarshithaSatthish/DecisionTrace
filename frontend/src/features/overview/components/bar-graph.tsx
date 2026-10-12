@@ -43,7 +43,7 @@ export function BarGraph() {
             -5.2%
           </Badge>
         </CardTitle>
-        <CardDescription>January - June 2025</CardDescription>
+        <CardDescription>2026 Commitment Velocity</CardDescription>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig}>

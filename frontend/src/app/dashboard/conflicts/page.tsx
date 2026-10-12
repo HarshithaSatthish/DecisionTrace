@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Conflicts Guardian — DecisionTrace',
+  title: 'Conflicts',
   description: 'Evidence-backed contradiction detector comparing historical and recent decisions'
 };
 

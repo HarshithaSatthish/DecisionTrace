@@ -7,8 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Decisions Guardian — DecisionTrace',
-  description: 'Searchable decision registry with verifiable conversation evidence references'
+  title: 'Decisions',
+  description: 'Searchable decision registry with verifiable conversation evidence and consensus verification'
 };
 
 export default async function DecisionsPage() {

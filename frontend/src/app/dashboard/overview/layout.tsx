@@ -1,3 +1,10 @@
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Overview',
+  description: 'DecisionTrace autonomous guardian overview — monitor live decisions, active commitments, conflict detection, and pending approvals.'
+};
+
 import PageContainer from '@/components/layout/page-container';
 import { Badge } from '@/components/ui/badge';
 import {

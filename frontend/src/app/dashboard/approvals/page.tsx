@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Approvals Guardian — DecisionTrace',
+  title: 'Approvals',
   description: 'Human-in-the-loop consensus approvals with execution impact previews'
 };
 

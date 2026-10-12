@@ -1,9 +1,9 @@
 import { Metadata } from 'next';
-import SignUpViewPage from '@/features/auth/components/sign-up-view';
+import SignUpViewPage from '@/features/auth/components/sigin-up-view';
 
 export const metadata: Metadata = {
-  title: 'Authentication | Sign Up',
-  description: 'Sign Up page for authentication.'
+  title: 'Sign Up',
+  description: 'Create a new DecisionTrace account to access autonomous decision tracking'
 };
 
 export default function Page() {

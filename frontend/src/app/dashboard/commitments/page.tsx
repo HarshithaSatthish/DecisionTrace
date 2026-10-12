@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Commitments Guardian — DecisionTrace',
+  title: 'Commitments',
   description:
     'Commitment tracking board derived from architectural decisions with verifiable ownership'
 };
