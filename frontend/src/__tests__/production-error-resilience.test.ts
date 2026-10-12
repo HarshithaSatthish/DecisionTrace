@@ -7,26 +7,69 @@ import {
   getApprovals,
   getActivity,
   DecisionTraceApiError,
-  setClientCacheScope,
   invalidateClientCache
 } from '@/features/decision-trace/api/service';
 
+let mockSessionUser: string | null = 'test_user_resilience';
+let mockSessionOrg: string | null = 'test_org_resilience';
+let mockSessionToken: string | null = 'test_clerk_jwt_token';
+
+mock.module('@clerk/nextjs/server', () => ({
+  auth: async () => {
+    if (!mockSessionUser) {
+      return {
+        userId: null,
+        orgId: null,
+        getToken: async () => null,
+        protect: async () => {
+          throw new Error('REDIRECT_TO_SIGN_IN');
+        }
+      };
+    }
+    return {
+      userId: mockSessionUser,
+      orgId: mockSessionOrg,
+      getToken: async () => mockSessionToken,
+      protect: async () => ({ userId: mockSessionUser, orgId: mockSessionOrg })
+    };
+  }
+}));
+
 describe('Production API Error Resilience & Tenant Cache Isolation Audit', () => {
   const originalFetch = globalThis.fetch;
-  const originalEnv = { ...process.env };
+  const originalNodeEnv = process.env.NODE_ENV;
+  const originalBackendUrl = process.env.DECISIONTRACE_BACKEND_URL;
+  const originalPreview = process.env.NEXT_PUBLIC_DECISIONTRACE_DEMO_PREVIEW;
+  const originalTestUser = process.env.TEST_AUTH_USER_ID;
 
   beforeEach(() => {
-    process.env = { ...originalEnv };
     (process.env as Record<string, string | undefined>).NODE_ENV = 'production';
     process.env.DECISIONTRACE_BACKEND_URL = 'http://localhost:8000/api/v1';
+    mockSessionUser = 'test_user_resilience';
+    mockSessionOrg = 'test_org_resilience';
+    mockSessionToken = 'test_clerk_jwt_token';
+    delete process.env.TEST_AUTH_USER_ID;
     delete process.env.NEXT_PUBLIC_DECISIONTRACE_DEMO_PREVIEW;
     invalidateClientCache();
-    setClientCacheScope('global');
   });
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
-    process.env = { ...originalEnv };
+    if (originalNodeEnv !== undefined) (process.env as Record<string, string | undefined>).NODE_ENV = originalNodeEnv;
+    else delete (process.env as Record<string, string | undefined>).NODE_ENV;
+
+    if (originalBackendUrl !== undefined) process.env.DECISIONTRACE_BACKEND_URL = originalBackendUrl;
+    else delete process.env.DECISIONTRACE_BACKEND_URL;
+
+    if (originalPreview !== undefined) process.env.NEXT_PUBLIC_DECISIONTRACE_DEMO_PREVIEW = originalPreview;
+    else delete process.env.NEXT_PUBLIC_DECISIONTRACE_DEMO_PREVIEW;
+
+    if (originalTestUser !== undefined) process.env.TEST_AUTH_USER_ID = originalTestUser;
+    else delete process.env.TEST_AUTH_USER_ID;
+    mockSessionUser = null;
+    mockSessionOrg = null;
+    mockSessionToken = null;
+
     invalidateClientCache();
   });
 
@@ -68,6 +111,21 @@ describe('Production API Error Resilience & Tenant Cache Isolation Audit', () =>
       // Activity
       await expect(getActivity()).rejects.toThrow('Authentication required');
     });
+
+    test('rejects unauthenticated request on server when no session headers are available', async () => {
+      mockSessionUser = null;
+      await expect(getDashboardMetrics()).rejects.toThrow('Authentication required');
+      await expect(getDecisions()).rejects.toThrow('Authentication required');
+    });
+
+    test('setting TEST_AUTH_USER_ID is strictly ignored and impossible to activate in production', async () => {
+      mockSessionUser = null;
+      process.env.TEST_AUTH_USER_ID = 'malicious_mock_user';
+      (process.env as Record<string, string | undefined>).NODE_ENV = 'production';
+
+      await expect(getDecisions()).rejects.toThrow('Authentication required');
+      await expect(getDashboardMetrics()).rejects.toThrow('Authentication required');
+    });
   });
 
   describe('HTTP 403 Forbidden Error Handling', () => {
@@ -99,7 +157,9 @@ describe('Production API Error Resilience & Tenant Cache Isolation Audit', () =>
         Promise.resolve(
           new Response(
             JSON.stringify({
-              error: 'Internal Server Error: Traceback in backend/app/main.py',
+              error: 'Internal Server Error',
+              detail:
+                'Traceback (most recent call last):\n  File "app/api/decisions.py", line 42, in list_decisions\n    raise OperationalError("FATAL: connection to server lost")',
               code: 'INTERNAL_ERROR'
             }),
             { status: 500, headers: { 'Content-Type': 'application/json' } }
@@ -108,25 +168,27 @@ describe('Production API Error Resilience & Tenant Cache Isolation Audit', () =>
       ) as unknown as typeof fetch;
 
       try {
-        await getDashboardMetrics();
+        await getDecisions();
       } catch (err: unknown) {
         expect(err instanceof DecisionTraceApiError).toBe(true);
         const apiErr = err as DecisionTraceApiError;
         expect(apiErr.statusCode).toBe(500);
         expect(apiErr.code).toBe('SERVER_ERROR');
+        // Critical: Stack trace & internal file paths must NEVER leak
         expect(apiErr.message.includes('Traceback')).toBe(false);
-        expect(apiErr.message.includes('backend/app/main.py')).toBe(false);
-        expect(apiErr.message).toContain('Internal server error');
+        expect(apiErr.message.includes('app/api/decisions.py')).toBe(false);
+        expect(apiErr.message.includes('OperationalError')).toBe(false);
+        expect(apiErr.message).toBe('Internal server error (HTTP 500). Please try again later.');
       }
     });
   });
 
   describe('HTTP 502 Bad Gateway Error Handling', () => {
-    test('surfaces honest 502 BAD_GATEWAY upstream error', async () => {
+    test('surfaces honest 502 BAD_GATEWAY when upstream service is unreachable', async () => {
       globalThis.fetch = mock(() =>
         Promise.resolve(
           new Response(
-            JSON.stringify({ error: 'Bad Gateway', code: 'BAD_GATEWAY' }),
+            JSON.stringify({ error: 'Bad Gateway: FastAPI upstream crashed', code: 'BAD_GATEWAY' }),
             { status: 502, headers: { 'Content-Type': 'application/json' } }
           )
         )
@@ -145,7 +207,7 @@ describe('Production API Error Resilience & Tenant Cache Isolation Audit', () =>
   });
 
   describe('HTTP 503 Service Unavailable Error Handling', () => {
-    test('surfaces honest 503 SERVICE_UNAVAILABLE error when backend is degraded', async () => {
+    test('surfaces honest 503 SERVICE_UNAVAILABLE during dependency outages', async () => {
       globalThis.fetch = mock(() =>
         Promise.resolve(
           new Response(
@@ -233,14 +295,11 @@ describe('Production API Error Resilience & Tenant Cache Isolation Audit', () =>
 
     test('distinguishes honest empty metrics with zero counts from failure', async () => {
       const genuineZeroMetrics = {
-        activeDecisionsCount: 0,
-        openCommitmentsCount: 0,
-        detectedConflictsCount: 0,
-        pendingApprovalsCount: 0,
-        decisionTrend: [],
-        attentionItems: [],
-        recentActivity: [],
-        isProductionOffline: false
+        total_conversations: 0,
+        active_decisions: 0,
+        pending_approvals: 0,
+        recent_findings: 0,
+        system_status: 'healthy'
       };
 
       globalThis.fetch = mock(() =>
@@ -261,112 +320,132 @@ describe('Production API Error Resilience & Tenant Cache Isolation Audit', () =>
     });
   });
 
-  describe('Multi-Tenant & Multi-User Cache Isolation', () => {
-    test('cached queries are partitioned by tenant scope and never leak across organizations or users', async () => {
-      let fetchCount = 0;
+  describe('Concurrent Two-User SSR Cache-Isolation & Zero Server-Cache Bleeding', () => {
+    test('two concurrent server-rendered requests for different users fetch independently with zero cache leakage', async () => {
+      const fetchCalls: { url: string; headers: Record<string, string> }[] = [];
 
-      // Scope 1: Organization A, User Alice
-      setClientCacheScope('org_A:user_alice');
-      globalThis.fetch = mock(() => {
-        fetchCount++;
+      globalThis.fetch = mock((url: unknown, init?: unknown) => {
+        const headers = ((init as RequestInit | undefined)?.headers || {}) as Record<string, string>;
+        fetchCalls.push({ url: String(url), headers });
+
+        const userId = headers['X-User-Id'];
+        if (userId === 'user_alice') {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                items: [
+                  {
+                    id: 'dec-alice',
+                    topic: 'Database Architecture',
+                    current_commitment: 'Use PostgreSQL',
+                    owner: 'Alice',
+                    state: 'active',
+                    version: 1,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                  }
+                ],
+                total: 1,
+                limit: 50,
+                offset: 0
+              }),
+              { status: 200, headers: { 'Content-Type': 'application/json' } }
+            )
+          );
+        } else if (userId === 'user_bob') {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                items: [
+                  {
+                    id: 'dec-bob',
+                    topic: 'Messaging Queue',
+                    current_commitment: 'Use Redis',
+                    owner: 'Bob',
+                    state: 'active',
+                    version: 1,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                  }
+                ],
+                total: 1,
+                limit: 50,
+                offset: 0
+              }),
+              { status: 200, headers: { 'Content-Type': 'application/json' } }
+            )
+          );
+        }
         return Promise.resolve(
-          new Response(
-            JSON.stringify([
-              {
-                id: 'dec-alice-org-a',
-                title: 'Alice Decision in Org A',
-                status: 'active',
-                whatWasDecided: 'Org A Policy',
-                participants: ['Alice'],
-                createdAt: '2026-10-12T00:00:00Z',
-                updatedAt: '2026-10-12T00:00:00Z',
-                confidence: 90
-              }
-            ]),
-            { status: 200, headers: { 'Content-Type': 'application/json' } }
-          )
+          new Response(JSON.stringify({ items: [], total: 0 }), { status: 200 })
         );
       }) as unknown as typeof fetch;
 
-      const aliceResults = await getDecisions();
-      expect(aliceResults.length).toBe(1);
-      expect(aliceResults[0].id).toBe('dec-alice-org-a');
-      expect(fetchCount).toBe(1);
+      // Concurrently execute requests for Alice and Bob
+      const [aliceDecisions, bobDecisions] = await Promise.all([
+        getDecisions(undefined, {
+          authHeaders: { 'X-User-Id': 'user_alice', Authorization: 'Bearer token_alice' }
+        }),
+        getDecisions(undefined, {
+          authHeaders: { 'X-User-Id': 'user_bob', Authorization: 'Bearer token_bob' }
+        })
+      ]);
 
-      // Repeated fetch in same scope uses memory cache
-      const aliceCached = await getDecisions();
-      expect(aliceCached[0].id).toBe('dec-alice-org-a');
-      expect(fetchCount).toBe(1);
+      // Alice receives Alice data
+      expect(aliceDecisions.length).toBe(1);
+      expect(aliceDecisions[0].id).toBe('dec-alice');
+      expect(aliceDecisions[0].whatWasDecided).toBe('Use PostgreSQL');
 
-      // Scope 2: Organization A, User Bob (Same org, different user)
-      setClientCacheScope('org_A:user_bob');
-      globalThis.fetch = mock(() => {
-        fetchCount++;
-        return Promise.resolve(
-          new Response(
-            JSON.stringify([
-              {
-                id: 'dec-bob-org-a',
-                title: 'Bob Decision in Org A',
-                status: 'active',
-                whatWasDecided: 'Bob Work',
-                participants: ['Bob'],
-                createdAt: '2026-10-12T00:00:00Z',
-                updatedAt: '2026-10-12T00:00:00Z',
-                confidence: 85
-              }
-            ]),
-            { status: 200, headers: { 'Content-Type': 'application/json' } }
-          )
-        );
-      }) as unknown as typeof fetch;
+      // Bob receives Bob data
+      expect(bobDecisions.length).toBe(1);
+      expect(bobDecisions[0].id).toBe('dec-bob');
+      expect(bobDecisions[0].whatWasDecided).toBe('Use Redis');
 
-      const bobResults = await getDecisions();
-      expect(bobResults.length).toBe(1);
-      expect(bobResults[0].id).toBe('dec-bob-org-a');
-      expect(fetchCount).toBe(2); // Must NOT read Alice cache!
+      // Crucial: Bob never saw Alice data and Alice never saw Bob data
+      expect(bobDecisions.some((d) => d.id === 'dec-alice')).toBe(false);
+      expect(aliceDecisions.some((d) => d.id === 'dec-bob')).toBe(false);
 
-      // Scope 3: Organization B, User Alice (Cross-org isolation for same user)
-      setClientCacheScope('org_B:user_alice');
-      globalThis.fetch = mock(() => {
-        fetchCount++;
-        return Promise.resolve(
-          new Response(
-            JSON.stringify([]),
-            { status: 200, headers: { 'Content-Type': 'application/json' } }
-          )
-        );
-      }) as unknown as typeof fetch;
+      // Both made direct independent backend calls (2 calls)
+      expect(fetchCalls.length).toBe(2);
 
-      const orgBResults = await getDecisions();
-      expect(orgBResults.length).toBe(0);
-      expect(fetchCount).toBe(3); // Must NOT read Org A cache!
+      // Subsequent call for Alice is NOT cached on server (3rd fetch call)
+      await getDecisions(undefined, {
+        authHeaders: { 'X-User-Id': 'user_alice', Authorization: 'Bearer token_alice' }
+      });
+      expect(fetchCalls.length).toBe(3);
     });
 
-    test('invalidateClientCache flushes all cached entries immediately', async () => {
-      let callCount = 0;
-      setClientCacheScope('org_X:user_1');
-
-      globalThis.fetch = mock(() => {
-        callCount++;
+    test('real backend endpoint contracts are targeted during server fetching', async () => {
+      const requestedUrls: string[] = [];
+      globalThis.fetch = mock((url: unknown) => {
+        requestedUrls.push(String(url));
         return Promise.resolve(
-          new Response(JSON.stringify([{ id: 'item-1' }]), {
+          new Response(JSON.stringify({ items: [], total: 0, active_decisions: 0, pending_approvals: 0, recent_findings: 0 }), {
             status: 200,
             headers: { 'Content-Type': 'application/json' }
           })
         );
       }) as unknown as typeof fetch;
 
-      await getDecisions();
-      expect(callCount).toBe(1);
+      await getDashboardMetrics();
+      expect(requestedUrls.some((u) => u.endsWith('/overview'))).toBe(true);
 
       await getDecisions();
-      expect(callCount).toBe(1); // Cached
+      expect(requestedUrls.some((u) => u.includes('/decisions'))).toBe(true);
 
-      invalidateClientCache();
+      await getCommitments();
+      // Commitments derived from /decisions contract
+      expect(requestedUrls.filter((u) => u.includes('/decisions')).length).toBeGreaterThanOrEqual(2);
 
-      await getDecisions();
-      expect(callCount).toBe(2); // Re-fetched after cache flush
+      await getConflicts();
+      // Conflicts derived from /findings contract
+      expect(requestedUrls.some((u) => u.includes('/findings'))).toBe(true);
+
+      await getApprovals();
+      expect(requestedUrls.some((u) => u.includes('/approvals'))).toBe(true);
+
+      await getActivity();
+      expect(requestedUrls.some((u) => u.includes('/activity'))).toBe(true);
     });
   });
 });

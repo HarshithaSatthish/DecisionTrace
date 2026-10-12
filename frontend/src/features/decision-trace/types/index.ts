@@ -39,8 +39,8 @@ export interface Decision {
     url?: string;
   };
   evidence: EvidenceReference[];
-  confidence: number; // 0-100 percentage
-  confidenceLevel: ConfidenceLevel;
+  confidence?: number; // 0-100 percentage, optional when unscored
+  confidenceLevel?: ConfidenceLevel;
   relatedCommitmentIds: string[];
   category: string;
   impactLevel: ImpactLevel;

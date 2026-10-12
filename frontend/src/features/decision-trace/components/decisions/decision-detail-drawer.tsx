@@ -46,9 +46,15 @@ export function DecisionDetailDrawer({
               {decision.category}
             </Badge>
             <DecisionStatusBadge status={decision.status} />
-            <Badge variant='secondary' className='text-xs font-normal ml-auto'>
-              Confidence: {decision.confidence}% ({decision.confidenceLevel})
-            </Badge>
+            {decision.confidence != null ? (
+              <Badge variant='secondary' className='text-xs font-normal ml-auto'>
+                Confidence: {decision.confidence}% ({decision.confidenceLevel || 'scored'})
+              </Badge>
+            ) : (
+              <Badge variant='outline' className='text-xs font-normal ml-auto text-muted-foreground'>
+                Confidence: Unscored
+              </Badge>
+            )}
           </div>
           <SheetTitle className='text-xl font-bold leading-snug text-foreground'>
             {decision.title}

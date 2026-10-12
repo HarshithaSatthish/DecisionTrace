@@ -38,10 +38,7 @@ export function DecisionsTable({ initialDecisions, initialCommitments }: Decisio
     return ['all', ...Array.from(set)];
   }, [initialDecisions]);
 
-  // Reset to page 1 on filter/search change
-  React.useEffect(() => {
-    setCurrentPage(1);
-  }, [search, statusFilter, categoryFilter]);
+// Page resets are handled directly in search/filter handlers to avoid cascading render effects
 
   const filteredDecisions = useMemo(() => {
     return initialDecisions.filter((decision) => {
@@ -79,7 +76,7 @@ export function DecisionsTable({ initialDecisions, initialCommitments }: Decisio
           <Input
             placeholder='Search decisions, participants, keywords...'
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
             className='pl-9 h-9 text-xs'
           />
         </div>
@@ -92,7 +89,7 @@ export function DecisionsTable({ initialDecisions, initialCommitments }: Decisio
                 key={st}
                 variant={statusFilter === st ? 'secondary' : 'ghost'}
                 size='sm'
-                onClick={() => setStatusFilter(st)}
+                onClick={() => { setStatusFilter(st); setCurrentPage(1); }}
                 className='h-7 px-2.5 text-xs capitalize'
               >
                 {st.replace('_', ' ')}
@@ -103,7 +100,7 @@ export function DecisionsTable({ initialDecisions, initialCommitments }: Decisio
           {/* Category Filter */}
           <select
             value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
+            onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1); }}
             className='h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
           >
             {categories.map((cat) => (
@@ -195,20 +192,29 @@ export function DecisionsTable({ initialDecisions, initialCommitments }: Decisio
                     </div>
                   </TableCell>
                   <TableCell className='py-3'>
-                    <div className='flex items-center gap-1.5'>
-                      <div className='w-12 bg-muted rounded-full h-1.5 overflow-hidden'>
-                        <div
-                          className='bg-emerald-500 h-full rounded-full'
-                          style={{ width: `${decision.confidence}%` }}
-                        />
+                    {decision.confidence != null ? (
+                      <>
+                        <div className='flex items-center gap-1.5'>
+                          <div className='w-12 bg-muted rounded-full h-1.5 overflow-hidden'>
+                            <div
+                              className='bg-emerald-500 h-full rounded-full'
+                              style={{ width: `${decision.confidence}%` }}
+                            />
+                          </div>
+                          <span className='text-xs font-medium tabular-nums'>
+                            {decision.confidence}%
+                          </span>
+                        </div>
+                        <span className='text-[10px] text-muted-foreground capitalize'>
+                          {decision.confidenceLevel ? `${decision.confidenceLevel} match` : 'Semantic match'}
+                        </span>
+                      </>
+                    ) : (
+                      <div className='flex flex-col'>
+                        <span className='text-xs text-muted-foreground italic'>Unscored</span>
+                        <span className='text-[10px] text-muted-foreground/70'>Direct extract</span>
                       </div>
-                      <span className='text-xs font-medium tabular-nums'>
-                        {decision.confidence}%
-                      </span>
-                    </div>
-                    <span className='text-[10px] text-muted-foreground capitalize'>
-                      {decision.confidenceLevel} match
-                    </span>
+                    )}
                   </TableCell>
                   <TableCell className='py-3'>
                     <DecisionStatusBadge status={decision.status} />
