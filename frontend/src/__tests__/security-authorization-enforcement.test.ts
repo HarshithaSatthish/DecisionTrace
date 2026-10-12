@@ -127,7 +127,7 @@ describe('Server-Side Authentication & Tenant Isolation Enforcement', () => {
 
   test('Setting environment variables cannot bypass API authorization check', async () => {
     mockSessionUser = null; // Unauthenticated
-    const prevE2E = process.env.E2E_TESTING;
+    
     const prevDev = process.env.NODE_ENV;
 
     // Attempt to fake environment flags
