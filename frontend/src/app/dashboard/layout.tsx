@@ -19,9 +19,7 @@ export const metadata: Metadata = {
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   // Gate the whole /dashboard segment: redirect to sign-in when signed out.
-  if (process.env.E2E_TESTING !== 'true') {
-    await auth.protect();
-  }
+  await auth.protect();
   // Persisting the sidebar state in the cookie.
   const cookieStore = await cookies();
   const defaultOpen = cookieStore.get('sidebar_state')?.value === 'true';

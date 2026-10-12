@@ -1,0 +1,65 @@
+name: DecisionTrace CI
+
+on:
+  push:
+    branches: [main, feature/harshitha-backend, perf/predeploy-decisiontrace-speed]
+  pull_request:
+    branches: [main, feature/harshitha-backend]
+
+jobs:
+  frontend:
+    name: Frontend Quality & Build Gate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Run Linter (Oxlint)
+        run: bun run lint
+
+      - name: Typecheck (tsc)
+        run: bun run typecheck
+
+      - name: Run Frontend Tests (Bun Test)
+        run: bun test
+
+      - name: Next.js Production Build
+        run: bun run build
+        env:
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_Y2xlcmsuZXhhbXBsZS5jb20k
+          CLERK_SECRET_KEY: sk_test_mock_secret_key_for_ci_build_only_12345
+          NODE_ENV: production
+
+  backend:
+    name: Backend Pytest & Contract Gate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run Backend Pytest Suite
+        run: pytest tests -v
