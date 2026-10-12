@@ -73,12 +73,16 @@ export default async function OverViewLayout({
                     className='gap-1 border-indigo-200 text-indigo-700 dark:text-indigo-300'
                   >
                     <Icons.trendingUp className='size-3' />
-                    +2 this week
+                    {metrics.activeDecisionsCount > 0 ? `${metrics.activeDecisionsCount} tracked` : 'Live sync'}
                   </Badge>
                 </CardAction>
               </CardHeader>
               <CardFooter className='pt-0 text-xs text-muted-foreground flex justify-between'>
-                <span>3 high confidence, 1 under review</span>
+                <span>
+                  {metrics.activeDecisionsCount > 0
+                    ? `${metrics.activeDecisionsCount} active in registry`
+                    : 'Awaiting conversation inputs'}
+                </span>
                 <span className='text-indigo-600 font-medium group-hover:underline'>
                   View &rarr;
                 </span>
@@ -106,12 +110,17 @@ export default async function OverViewLayout({
                     variant='outline'
                     className='gap-1 border-teal-200 text-teal-700 dark:text-teal-300'
                   >
-                    <Icons.clock className='size-3' />1 blocked
+                    <Icons.clock className='size-3' />
+                    {metrics.openCommitmentsCount > 0 ? `${metrics.openCommitmentsCount} active` : 'All clear'}
                   </Badge>
                 </CardAction>
               </CardHeader>
               <CardFooter className='pt-0 text-xs text-muted-foreground flex justify-between'>
-                <span>1 planned, 2 in progress</span>
+                <span>
+                  {metrics.openCommitmentsCount > 0
+                    ? `${metrics.openCommitmentsCount} in progress`
+                    : 'Zero unfulfilled commitments'}
+                </span>
                 <span className='text-teal-600 font-medium group-hover:underline'>
                   Board &rarr;
                 </span>
@@ -135,16 +144,29 @@ export default async function OverViewLayout({
                   {metrics.detectedConflictsCount}
                 </CardTitle>
                 <CardAction>
-                  <Badge
-                    variant='destructive'
-                    className='text-[10px] uppercase font-semibold tracking-wider'
-                  >
-                    Contradiction Alert
-                  </Badge>
+                  {metrics.detectedConflictsCount > 0 ? (
+                    <Badge
+                      variant='destructive'
+                      className='text-[10px] uppercase font-semibold tracking-wider'
+                    >
+                      Contradiction Alert
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant='outline'
+                      className='text-[10px] uppercase font-semibold tracking-wider text-emerald-700 border-emerald-300 dark:text-emerald-300'
+                    >
+                      No Contradictions
+                    </Badge>
+                  )}
                 </CardAction>
               </CardHeader>
               <CardFooter className='pt-0 text-xs text-rose-800/80 dark:text-rose-300 flex justify-between'>
-                <span>1 critical, 1 high severity</span>
+                <span>
+                  {metrics.detectedConflictsCount > 0
+                    ? `${metrics.detectedConflictsCount} require attention`
+                    : '0 contradiction alerts'}
+                </span>
                 <span className='font-semibold text-rose-700 group-hover:underline'>
                   Resolve &rarr;
                 </span>
@@ -168,16 +190,29 @@ export default async function OverViewLayout({
                   {metrics.pendingApprovalsCount}
                 </CardTitle>
                 <CardAction>
-                  <Badge
-                    variant='outline'
-                    className='border-amber-400 bg-amber-50 text-amber-800 text-[10px]'
-                  >
-                    Awaiting Consensus
-                  </Badge>
+                  {metrics.pendingApprovalsCount > 0 ? (
+                    <Badge
+                      variant='outline'
+                      className='border-amber-400 bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-300 text-[10px]'
+                    >
+                      Awaiting Action
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant='outline'
+                      className='border-muted text-muted-foreground text-[10px]'
+                    >
+                      Zero Pending
+                    </Badge>
+                  )}
                 </CardAction>
               </CardHeader>
               <CardFooter className='pt-0 text-xs text-amber-800/80 dark:text-amber-300 flex justify-between'>
-                <span>Backend consensus verification</span>
+                <span>
+                  {metrics.pendingApprovalsCount > 0
+                    ? `${metrics.pendingApprovalsCount} pending human action`
+                    : 'Zero pending human approvals'}
+                </span>
                 <span className='font-semibold text-amber-700 group-hover:underline'>
                   Review &rarr;
                 </span>

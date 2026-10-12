@@ -16,7 +16,10 @@ _embedding_model: TextEmbedding | None = None
 
 
 def get_qdrant_client() -> QdrantClient:
-    """Get or initialize singleton Qdrant client with automatic test/offline fallback."""
+    """Get or initialize singleton Qdrant client with automatic test/offline fallback.
+    In production (APP_ENV == 'production'), remote Qdrant failure raises RuntimeError
+    to prevent silent loss of durable semantic memory.
+    """
     global _qdrant_client
     if _qdrant_client is None:
         if settings.APP_ENV == "test":
@@ -27,13 +30,19 @@ def get_qdrant_client() -> QdrantClient:
                     url=settings.QDRANT_URL,
                     api_key=settings.QDRANT_API_KEY,
                     timeout=2.0,
+                    check_compatibility=False,
                 )
                 client.get_collections()
                 _qdrant_client = client
             except Exception as e:
-                logger.warning(f"Remote Qdrant unreachable ({e}), falling back to in-memory mode")
+                if settings.APP_ENV == "production":
+                    logger.error(f"FATAL: Remote Qdrant connection failed in production: {e}")
+                    raise RuntimeError(f"Remote Qdrant unavailable in production: {e}") from e
+                logger.warning(f"Remote Qdrant unreachable ({e}), falling back to in-memory mode for dev/test")
                 _qdrant_client = QdrantClient(":memory:")
         else:
+            if settings.APP_ENV == "production":
+                raise RuntimeError("QDRANT_URL must be configured with a remote cluster in production")
             _qdrant_client = QdrantClient(":memory:")
         ensure_collection_exists(_qdrant_client)
     return _qdrant_client

@@ -50,22 +50,22 @@ def get_decision_detail(
     claims: dict[str, Any] = Depends(verify_clerk_token),
     session: Session = Depends(get_session),
 ) -> DecisionDetailRead:
-    """Get decision details including evidence chunk links."""
+    """Get decision details including evidence chunk links (eager relationship load)."""
+    from sqlalchemy.orm import selectinload
+
     clerk_id = claims.get("sub", "")
     user = get_or_create_user(session, clerk_id)
 
     decision = session.exec(
-        select(Decision).where(Decision.id == decision_id, Decision.user_id == user.id)
+        select(Decision)
+        .options(selectinload(Decision.evidence))
+        .where(Decision.id == decision_id, Decision.user_id == user.id)
     ).first()
 
     if not decision:
         raise HTTPException(status_code=404, detail="Decision not found")
 
-    evidence = session.exec(
-        select(DecisionEvidence).where(DecisionEvidence.decision_id == decision.id)
-    ).all()
-
-    evidence_chunk_ids = [e.chunk_id for e in evidence]
+    evidence_chunk_ids = [e.chunk_id for e in decision.evidence]
 
     return DecisionDetailRead(
         id=decision.id,

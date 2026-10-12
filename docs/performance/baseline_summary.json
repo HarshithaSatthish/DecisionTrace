@@ -1,0 +1,66 @@
+[
+  {
+    "url": "http://localhost:3000/auth/sign-in",
+    "name": "baseline_signin_mobile",
+    "device": "mobile",
+    "scores": {
+      "performance": 36,
+      "accessibility": 94,
+      "best_practices": 77,
+      "seo": 63
+    },
+    "vitals": {
+      "FCP": "2.5\u00a0s",
+      "LCP": "9.5\u00a0s",
+      "TBT": "1,040\u00a0ms",
+      "CLS": "0.183",
+      "TTFB": "Root document took 50\u00a0ms",
+      "SpeedIndex": "5.9\u00a0s"
+    },
+    "network": {
+      "total_bytes": 1559919,
+      "total_requests": 74
+    },
+    "resource_bytes": {
+      "other": 31004,
+      "document": 12662,
+      "font": 584931,
+      "stylesheet": 55161,
+      "script": 864696,
+      "fetch": 9292,
+      "image": 2171
+    }
+  },
+  {
+    "url": "http://localhost:3000/auth/sign-in",
+    "name": "baseline_signin_desktop",
+    "device": "desktop",
+    "scores": {
+      "performance": 93,
+      "accessibility": 94,
+      "best_practices": 77,
+      "seo": 63
+    },
+    "vitals": {
+      "FCP": "0.7\u00a0s",
+      "LCP": "1.6\u00a0s",
+      "TBT": "50\u00a0ms",
+      "CLS": "0",
+      "TTFB": "Root document took 40\u00a0ms",
+      "SpeedIndex": "1.1\u00a0s"
+    },
+    "network": {
+      "total_bytes": 1559967,
+      "total_requests": 74
+    },
+    "resource_bytes": {
+      "other": 30991,
+      "document": 12660,
+      "font": 584931,
+      "stylesheet": 55161,
+      "script": 864715,
+      "fetch": 9340,
+      "image": 2167
+    }
+  }
+]

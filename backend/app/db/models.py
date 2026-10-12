@@ -4,7 +4,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any, Optional
 
-from sqlalchemy import Column, UniqueConstraint
+from sqlalchemy import Column, Index, UniqueConstraint
 from sqlmodel import JSON, Field, Relationship, SQLModel
 
 
@@ -109,6 +109,10 @@ class ConversationChunk(SQLModel, table=True):
 
 class Decision(SQLModel, table=True):
     __tablename__ = "decisions"
+    __table_args__ = (
+        Index("ix_decisions_user_updated", "user_id", "updated_at"),
+        Index("ix_decisions_user_state", "user_id", "state"),
+    )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
@@ -159,6 +163,9 @@ class AgentRun(SQLModel, table=True):
 
 class Finding(SQLModel, table=True):
     __tablename__ = "findings"
+    __table_args__ = (
+        Index("ix_findings_user_status_created", "user_id", "status", "created_at"),
+    )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
@@ -185,6 +192,9 @@ class Finding(SQLModel, table=True):
 
 class ApprovalRequest(SQLModel, table=True):
     __tablename__ = "approval_requests"
+    __table_args__ = (
+        Index("ix_approvals_user_status_created", "user_id", "status", "created_at"),
+    )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
@@ -226,6 +236,9 @@ class Task(SQLModel, table=True):
 
 class AuditEvent(SQLModel, table=True):
     __tablename__ = "audit_events"
+    __table_args__ = (
+        Index("ix_audit_events_user_timestamp", "user_id", "timestamp"),
+    )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)

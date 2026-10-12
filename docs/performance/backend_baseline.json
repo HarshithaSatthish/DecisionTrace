@@ -1,0 +1,37 @@
+{
+  "decisions_list": {
+    "count": 50,
+    "p50_ms": 9.15,
+    "p95_ms": 11.54,
+    "min_ms": 7.68,
+    "max_ms": 60.61
+  },
+  "approvals_list": {
+    "count": 50,
+    "p50_ms": 8.63,
+    "p95_ms": 11.26,
+    "min_ms": 7.89,
+    "max_ms": 32.86
+  },
+  "activity_list": {
+    "count": 50,
+    "p50_ms": 8.8,
+    "p95_ms": 16.78,
+    "min_ms": 8.02,
+    "max_ms": 32.72
+  },
+  "health_endpoint": {
+    "count": 50,
+    "p50_ms": 4.28,
+    "p95_ms": 5.78,
+    "min_ms": 3.64,
+    "max_ms": 28.69
+  },
+  "ready_endpoint": {
+    "count": 50,
+    "p50_ms": 4069.96,
+    "p95_ms": 4095.34,
+    "min_ms": 4042.11,
+    "max_ms": 5915.6
+  }
+}
