@@ -7,11 +7,11 @@ Welcome to the DecisionTrace Workspace.
 - **Akshay (Person 2 - Frontend & Agents)**: Owns Next.js + Clerk UI, Lyzr Manager Agent & specialist agent design.
 
 ## Quick Documentation Links
-- [API Contract](file:///C:/Users/harsh/Downloads/PERSON/backend/API_CONTRACT.md)
-- [Agent Contract](file:///C:/Users/harsh/Downloads/PERSON/backend/AGENT_CONTRACT.md)
-- [Integration Handoff](file:///C:/Users/harsh/Downloads/PERSON/backend/INTEGRATION_HANDOFF.md)
-- [Build Status Matrix](file:///C:/Users/harsh/Downloads/PERSON/backend/BUILD_STATUS.md)
-- [Third-Party Notices](file:///C:/Users/harsh/Downloads/PERSON/backend/THIRD_PARTY_NOTICES.md)
+- [API Contract](backend/API_CONTRACT.md)
+- [Agent Contract](backend/AGENT_CONTRACT.md)
+- [Integration Handoff](backend/INTEGRATION_HANDOFF.md)
+- [Build Status Matrix](backend/BUILD_STATUS.md)
+- [Third-Party Notices](backend/THIRD_PARTY_NOTICES.md)
 
 ## Getting Started
-See [backend/README.md](file:///C:/Users/harsh/Downloads/PERSON/backend/README.md) for startup, testing, and deployment commands.
+See [backend/README.md](backend/README.md) for startup, testing, and deployment commands.

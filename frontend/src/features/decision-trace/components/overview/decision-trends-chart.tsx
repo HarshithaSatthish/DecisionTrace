@@ -60,7 +60,7 @@ export function DecisionTrendsChart({ data }: DecisionTrendsChartProps = {}) {
               className='gap-1 border-indigo-500/30 text-indigo-700 dark:text-indigo-300'
             >
               <Icons.trendingUp className='size-3' />
-              +21% velocity
+              Trending
             </Badge>
           ) : (
             <Badge variant='outline' className='text-xs text-muted-foreground'>

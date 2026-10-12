@@ -62,19 +62,19 @@ export function OmiSettingsCard({ initialStatus }: OmiSettingsCardProps) {
                 Omi Device Connection Status
               </CardTitle>
               <CardDescription className='text-xs'>
-                Direct live stream integration between Omi wearable audio capture and DecisionTrace.
+                Direct webhook integration: Omi wearable audio capture posts events to your DecisionTrace webhook endpoint.
               </CardDescription>
             </div>
             <div>
               {status.connected ? (
                 <Badge className='border-emerald-500/30 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 gap-1.5 py-1 px-2.5 text-xs'>
                   <Icons.check className='size-3.5' />
-                  Connected & Active
+                  Webhook Configured
                 </Badge>
               ) : (
                 <Badge variant='outline' className='border-amber-500/40 bg-amber-50/50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400 gap-1.5 py-1 px-2.5 text-xs'>
                   <Icons.warning className='size-3.5' />
-                  Not Connected
+                  Webhook Not Configured
                 </Badge>
               )}
             </div>
@@ -89,7 +89,7 @@ export function OmiSettingsCard({ initialStatus }: OmiSettingsCardProps) {
               </span>
             </div>
             <div>
-              <span className='text-muted-foreground block text-[11px] mb-0.5'>Last Connected Time</span>
+              <span className='text-muted-foreground block text-[11px] mb-0.5'>Webhook Created</span>
               <span className='font-medium'>
                 {status.createdAt ? new Date(status.createdAt).toLocaleString() : 'Pending setup'}
               </span>
