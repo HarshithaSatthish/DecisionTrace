@@ -41,6 +41,12 @@ interface DecisionTrendsChartProps {
 export function DecisionTrendsChart({ data }: DecisionTrendsChartProps = {}) {
   const trendData = data ?? (isDevPreviewEnabled() ? chartData : []);
   const hasData = trendData.length > 0;
+  const isUpwardTrend = React.useMemo(() => {
+    if (trendData.length < 2) return false;
+    const latest = trendData[trendData.length - 1];
+    const prev = trendData[trendData.length - 2];
+    return (latest.decisions + latest.commitments) > (prev.decisions + prev.commitments);
+  }, [trendData]);
 
   return (
     <Card className='border-border/80 shadow-xs'>
@@ -55,13 +61,19 @@ export function DecisionTrendsChart({ data }: DecisionTrendsChartProps = {}) {
             </CardDescription>
           </div>
           {hasData ? (
-            <Badge
-              variant='outline'
-              className='gap-1 border-indigo-500/30 text-indigo-700 dark:text-indigo-300'
-            >
-              <Icons.trendingUp className='size-3' />
-              +21% velocity
-            </Badge>
+            isUpwardTrend ? (
+              <Badge
+                variant='outline'
+                className='gap-1 border-indigo-500/30 text-indigo-700 dark:text-indigo-300'
+              >
+                <Icons.trendingUp className='size-3' />
+                Trending Up
+              </Badge>
+            ) : (
+              <Badge variant='outline' className='text-xs text-muted-foreground'>
+                Activity Recorded
+              </Badge>
+            )
           ) : (
             <Badge variant='outline' className='text-xs text-muted-foreground'>
               Awaiting Ingestion

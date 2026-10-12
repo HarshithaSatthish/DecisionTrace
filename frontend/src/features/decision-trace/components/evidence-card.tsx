@@ -1,3 +1,4 @@
+import { formatSafeDateTime } from '../lib/format-date';
 import React from 'react';
 import { EvidenceReference } from '../types';
 import { Icons } from '@/components/icons';
@@ -27,7 +28,7 @@ export function EvidenceCard({ evidence, className, compact = false }: EvidenceC
     }
   };
 
-  const formattedDate = new Date(evidence.timestamp).toLocaleString(undefined, {
+  const formattedDate = formatSafeDateTime(evidence.timestamp, {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',

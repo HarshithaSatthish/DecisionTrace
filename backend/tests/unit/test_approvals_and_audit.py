@@ -1,3 +1,6 @@
+import pytest
+from fastapi import HTTPException
+from sqlmodel import SQLModel
 """Unit tests for Human Approvals, Atomic mutations, Double-Approval Protection, and Audit trail."""
 
 import uuid
@@ -396,3 +399,193 @@ def test_concurrent_approval_collision_returns_409(db_session: Session, test_use
             approver_clerk_id=test_user.clerk_id,
         )
     assert exc_info.value.status_code == 409
+
+
+def test_unsupported_action_kind_fails_with_400(
+    db_session: Session, test_user: User
+):
+    """Ensure unsupported or missing action kinds are rejected with 400 without mutating decisions."""
+    now = utc_now()
+    finding = Finding(
+        user_id=test_user.id,
+        conversation_id=uuid.uuid4(),
+        classification="new_commitment",
+        topic_key="security_review",
+        new_value="Schedule security audit",
+        explanation="Detected proposal for security review.",
+        confidence="high",
+        status="pending_approval",
+        created_at=now,
+    )
+    db_session.add(finding)
+    db_session.flush()
+
+    exec_key = "exec_key_unsupported_01"
+    approval_req = ApprovalRequest(
+        user_id=test_user.id,
+        finding_id=finding.id,
+        status="pending",
+        action_payload={"kind": "unsupported_malicious_mutation", "topic": "hack"},
+        requester="agent",
+        execution_key=exec_key,
+        created_at=now,
+    )
+    db_session.add(approval_req)
+    db_session.commit()
+
+    with pytest.raises(HTTPException) as exc_info:
+        ApprovalService.approve(
+            session=db_session,
+            user_id=test_user.id,
+            approval_id=approval_req.id,
+            execution_key=exec_key,
+            approver_clerk_id=test_user.clerk_id,
+        )
+    assert exc_info.value.status_code == 400
+    assert "Unsupported or missing action kind" in exc_info.value.detail
+
+    # Verify no state changes occurred
+    db_session.refresh(approval_req)
+    assert approval_req.status == "pending"
+
+    decisions = db_session.exec(select(Decision).where(Decision.user_id == test_user.id)).all()
+    assert len(decisions) == 0
+
+    audits = db_session.exec(
+        select(AuditEvent).where(AuditEvent.entity_id == str(approval_req.id))
+    ).all()
+    assert len(audits) == 0
+
+
+def test_concurrent_approvals_with_real_postgresql():
+    """Verify true atomic concurrency with two independent threads/sessions against real PostgreSQL.
+    
+    If real PostgreSQL is reachable, verifies row-level FOR UPDATE locking prevents
+    duplicate decisions, tasks, or audit records.
+    """
+    import os
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+    from sqlmodel import create_engine
+
+    pg_url = os.getenv("POSTGRES_TEST_URL", "postgresql+psycopg://postgres:postgres@localhost:5432/decisiontrace")
+    try:
+        pg_engine = create_engine(pg_url, pool_pre_ping=True)
+        with pg_engine.connect() as conn:
+            pass
+    except Exception as e:
+        pytest.skip(f"Live PostgreSQL database not reachable ({e}). Set POSTGRES_TEST_URL or run Docker Postgres to execute live PostgreSQL concurrency test.")
+
+    SQLModel.metadata.create_all(pg_engine)
+
+    # Seed test entities in PostgreSQL
+    with Session(pg_engine) as seed_session:
+        pg_user = User(
+            clerk_id=f"user_pg_conc_{uuid.uuid4().hex[:8]}",
+            email="pg_conc@decisiontrace.test",
+            created_at=utc_now(),
+        )
+        seed_session.add(pg_user)
+        seed_session.commit()
+        seed_session.refresh(pg_user)
+
+        now = utc_now()
+        from app.db.models import Conversation, OmiIntegration
+        pg_integ = OmiIntegration(
+            user_id=pg_user.id,
+            installation_id=f"inst_pg_{uuid.uuid4().hex[:8]}",
+            webhook_token_hash=f"hash_pg_{uuid.uuid4().hex}",
+            is_active=True,
+        )
+        seed_session.add(pg_integ)
+        seed_session.commit()
+        seed_session.refresh(pg_integ)
+
+        pg_conv = Conversation(
+            user_id=pg_user.id,
+            installation_id=pg_integ.id,
+            source_event_id=f"pg_conv_{uuid.uuid4().hex[:8]}",
+            title="Postgres Concurrency Conv",
+            normalized_transcript="Transcript for concurrency test",
+            status="processed",
+            source_time=now,
+            received_time=now,
+        )
+        seed_session.add(pg_conv)
+        seed_session.commit()
+        seed_session.refresh(pg_conv)
+
+        pg_finding = Finding(
+            user_id=pg_user.id,
+            conversation_id=pg_conv.id,
+            classification="new_commitment",
+            topic_key="infra_migration",
+            new_value="Migrate to Postgres 16",
+            explanation="Database migration proposal.",
+            confidence="high",
+            status="pending_approval",
+            created_at=now,
+        )
+        seed_session.add(pg_finding)
+        seed_session.flush()
+
+        exec_key = f"exec_key_pg_{uuid.uuid4().hex[:8]}"
+        pg_approval = ApprovalRequest(
+            user_id=pg_user.id,
+            finding_id=pg_finding.id,
+            status="pending",
+            action_payload={"kind": "create_decision", "topic": "infra_migration", "new_value": "Migrate to Postgres 16"},
+            requester="agent",
+            execution_key=exec_key,
+            created_at=now,
+        )
+        seed_session.add(pg_approval)
+        seed_session.commit()
+        seed_session.refresh(pg_approval)
+        app_id = pg_approval.id
+        u_id = pg_user.id
+        u_clerk = pg_user.clerk_id
+
+    results = []
+    errors = []
+    start_barrier = threading.Barrier(2)
+
+    def _worker_attempt():
+        # Each thread gets its own independent session
+        with Session(pg_engine) as thread_session:
+            start_barrier.wait()  # synchronize release
+            try:
+                res = ApprovalService.approve(
+                    session=thread_session,
+                    user_id=u_id,
+                    approval_id=app_id,
+                    execution_key=exec_key,
+                    approver_clerk_id=u_clerk,
+                )
+                results.append(res)
+            except HTTPException as ex:
+                errors.append(ex)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        f1 = executor.submit(_worker_attempt)
+        f2 = executor.submit(_worker_attempt)
+        f1.result()
+        f2.result()
+
+    # Under PostgreSQL row locking: exactly ONE session succeeds, second receives 409 Conflict
+    assert len(results) == 1, f"Expected exactly 1 success, got {len(results)}"
+    assert len(errors) == 1, f"Expected exactly 1 conflict error, got {len(errors)}"
+    assert errors[0].status_code == 409
+    assert "already resolved" in errors[0].detail
+
+    # Verify authoritative database state in PostgreSQL
+    with Session(pg_engine) as verify_session:
+        # Exactly ONE decision created
+        decisions = verify_session.exec(select(Decision).where(Decision.user_id == u_id)).all()
+        assert len(decisions) == 1
+        assert decisions[0].topic == "infra_migration"
+
+        # Exactly ONE audit log created
+        audits = verify_session.exec(select(AuditEvent).where(AuditEvent.entity_id == str(app_id))).all()
+        assert len(audits) == 1
+        assert audits[0].action == "approval_granted"

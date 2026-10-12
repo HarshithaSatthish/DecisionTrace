@@ -42,6 +42,32 @@ def test_omi_integration_link_and_status(client: TestClient, test_user: User):
     assert res2.status_code == 200
     assert res2.json()["connected"] is True
     assert res2.json()["external_omi_uid"] == "omi_device_999"
+    first_token = data["webhook_token"]
+
+    # 4. Regenerate / renew token: deactivates first integration
+    res3 = client.post(
+        "/api/v1/integrations/omi",
+        headers=headers,
+        json={"external_omi_uid": "omi_device_renewed"},
+    )
+    assert res3.status_code == 201
+    second_token = res3.json()["webhook_token"]
+    assert second_token != first_token
+
+    # 5. Verify old token is revoked and rejects webhook with 401
+    webhook_res_old = client.post(
+        f"/api/v1/webhooks/omi/{first_token}",
+        json={"id": "evt_old", "transcript_segments": [{"text": "hello"}]},
+    )
+    assert webhook_res_old.status_code == 401
+    assert "Invalid or revoked" in webhook_res_old.json()["detail"]
+
+    # 6. Verify new token succeeds
+    webhook_res_new = client.post(
+        f"/api/v1/webhooks/omi/{second_token}",
+        json={"id": "evt_new", "transcript_segments": [{"text": "hello"}]},
+    )
+    assert webhook_res_new.status_code == 202
 
 
 def test_decisions_api_and_user_isolation(client: TestClient, db_session: Session, test_user: User):

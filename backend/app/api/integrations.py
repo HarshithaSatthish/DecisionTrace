@@ -75,6 +75,17 @@ def link_omi_integration(
     email = claims.get("email")
     user = get_or_create_user(session, clerk_id, email)
 
+    # Revoke all previous active integration tokens for this user
+    statement = select(OmiIntegration).where(
+        OmiIntegration.user_id == user.id,
+        OmiIntegration.is_active == True,
+    )
+    existing_integrations = session.exec(statement).all()
+    for existing in existing_integrations:
+        existing.is_active = False
+        existing.updated_at = utc_now()
+        session.add(existing)
+
     raw_token = generate_webhook_token()
     token_hash = hash_webhook_token(raw_token)
     installation_id = f"inst_{secrets.token_hex(8)}"

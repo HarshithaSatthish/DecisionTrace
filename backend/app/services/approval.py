@@ -21,6 +21,8 @@ from app.schemas.decision import DecisionRead
 
 logger = logging.getLogger(__name__)
 
+SUPPORTED_ACTION_KINDS = {"create_decision", "request_decision_update", "create_task"}
+
 
 class ApprovalService:
     @staticmethod
@@ -32,10 +34,15 @@ class ApprovalService:
         note: str | None = None,
         approver_clerk_id: str = "reviewer",
     ) -> ApprovalExecutionResponse:
-        """Atomically approve finding and execute requested mutation."""
-        statement = select(ApprovalRequest).where(
-            ApprovalRequest.id == approval_id,
-            ApprovalRequest.user_id == user_id,
+        """Atomically approve finding and execute requested mutation with row-level locking."""
+        # Row-level lock (FOR UPDATE in PostgreSQL) prevents concurrent executions
+        statement = (
+            select(ApprovalRequest)
+            .where(
+                ApprovalRequest.id == approval_id,
+                ApprovalRequest.user_id == user_id,
+            )
+            .with_for_update()
         )
         approval_req = session.exec(statement).first()
 
@@ -68,6 +75,13 @@ class ApprovalService:
 
         action_payload = approval_req.action_payload or {}
         kind = action_payload.get("kind")
+        if kind not in SUPPORTED_ACTION_KINDS:
+            kinds_str = ", ".join(sorted(SUPPORTED_ACTION_KINDS))
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unsupported or missing action kind '{kind}'. Supported kinds: {kinds_str}",
+            )
+
         resulting_decision: Decision | None = None
         now = utc_now()
 
@@ -120,18 +134,20 @@ class ApprovalService:
             if target_decision_id_raw:
                 try:
                     target_uuid = uuid.UUID(str(target_decision_id_raw))
-                    target_dec = session.get(Decision, target_uuid)
-                except ValueError:
+                except (ValueError, TypeError):
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="Invalid target_decision_id UUID format",
+                        detail="Invalid target_decision_id format",
                     )
+                target_dec = session.exec(
+                    select(Decision).where(Decision.id == target_uuid).with_for_update()
+                ).first()
                 if not target_dec:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
                         detail="Referenced target decision not found",
                     )
-                # Strict multi-tenant authorization: verify target decision belongs to authenticated user
+                # Verify target decision belongs to authenticated user
                 if target_dec.user_id != user_id:
                     logger.warning(
                         f"Cross-user authorization violation: user {user_id} attempted to mutate decision {target_dec.id} of user {target_dec.user_id}"
@@ -142,13 +158,15 @@ class ApprovalService:
                     )
 
             if not target_dec and finding.topic_key:
-                # Find by topic strictly scoped to authenticated user
+                # Find by topic strictly scoped to authenticated user with row lock
                 target_dec = session.exec(
-                    select(Decision).where(
+                    select(Decision)
+                    .where(
                         Decision.user_id == user_id,
                         Decision.topic == finding.topic_key,
                         Decision.state == "active",
                     )
+                    .with_for_update()
                 ).first()
 
             new_val = action_payload.get("new_value") or finding.new_value or ""
@@ -248,9 +266,13 @@ class ApprovalService:
         approver_clerk_id: str = "reviewer",
     ) -> ApprovalExecutionResponse:
         """Reject proposed finding without mutating decisions."""
-        statement = select(ApprovalRequest).where(
-            ApprovalRequest.id == approval_id,
-            ApprovalRequest.user_id == user_id,
+        statement = (
+            select(ApprovalRequest)
+            .where(
+                ApprovalRequest.id == approval_id,
+                ApprovalRequest.user_id == user_id,
+            )
+            .with_for_update()
         )
         approval_req = session.exec(statement).first()
         if not approval_req:
@@ -306,9 +328,13 @@ class ApprovalService:
         approver_clerk_id: str = "reviewer",
     ) -> ApprovalExecutionResponse:
         """Mark approval request as requiring clarification."""
-        statement = select(ApprovalRequest).where(
-            ApprovalRequest.id == approval_id,
-            ApprovalRequest.user_id == user_id,
+        statement = (
+            select(ApprovalRequest)
+            .where(
+                ApprovalRequest.id == approval_id,
+                ApprovalRequest.user_id == user_id,
+            )
+            .with_for_update()
         )
         approval_req = session.exec(statement).first()
         if not approval_req:

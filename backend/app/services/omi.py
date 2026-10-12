@@ -30,10 +30,21 @@ def ingest_omi_memory(
             detail="Invalid or revoked Omi installation token",
         )
 
-    # 2. Check for empty or discarded payload
+    # 2. Deduplication check by (installation_id, source_event_id) FIRST (idempotent for all retries)
+    existing_conv = get_conversation_by_source_id(session, integration.id, payload.id)
+    if existing_conv:
+        logger.info(
+            f"Duplicate Omi memory received: {payload.id} for installation {integration.id}"
+        )
+        return status.HTTP_200_OK, WebhookResponse(
+            status="discarded" if existing_conv.status == "discarded" else "duplicate",
+            conversation_id=existing_conv.id,
+            message="Event already recorded, no duplicate work queued",
+        )
+
+    # 3. Handle discarded payload safely and idempotently
     if payload.discarded:
         logger.info(f"Omi memory {payload.id} marked discarded by client")
-        # Save discarded state without queuing heavy work
         conv = Conversation(
             user_id=integration.user_id,
             installation_id=integration.id,
@@ -50,18 +61,6 @@ def ingest_omi_memory(
             status="discarded",
             conversation_id=conv.id,
             message="Memory was discarded; recorded without queuing processing",
-        )
-
-    # 3. Deduplication check by (installation_id, source_event_id)
-    existing_conv = get_conversation_by_source_id(session, integration.id, payload.id)
-    if existing_conv:
-        logger.info(
-            f"Duplicate Omi memory received: {payload.id} for installation {integration.id}"
-        )
-        return status.HTTP_200_OK, WebhookResponse(
-            status="duplicate",
-            conversation_id=existing_conv.id,
-            message="Event already recorded, no duplicate work queued",
         )
 
     # 4. Normalize transcript and segments
@@ -84,7 +83,7 @@ def ingest_omi_memory(
     source_time = payload.finished_at or payload.created_at or utc_now()
     now = utc_now()
 
-    # 5. Outbox commit: create Conversation and ProcessingJob together
+    # 5. Outbox commit: create Conversation and ProcessingJob in 'received' state
     conv = Conversation(
         user_id=integration.user_id,
         installation_id=integration.id,
@@ -96,20 +95,19 @@ def ingest_omi_memory(
         original_metadata=payload.model_dump(mode="json", exclude={"transcript_segments"}),
         source_time=source_time,
         received_time=now,
-        status="queued",
+        status="received",
     )
     session.add(conv)
     session.flush()
 
     job = ProcessingJob(
         conversation_id=conv.id,
-        state="queued",
+        state="received",
         attempt_count=0,
-        queued_at=now,
+        queued_at=None,
         milestones=[
             {"state": "received", "timestamp": now.isoformat()},
             {"state": "saved", "timestamp": now.isoformat()},
-            {"state": "queued", "timestamp": now.isoformat()},
         ],
     )
     session.add(job)
@@ -118,15 +116,26 @@ def ingest_omi_memory(
     session.refresh(job)
 
     # 6. Enqueue asynchronously to RQ if enabled
+    # Only mark job queued in DB if Redis enqueue actually succeeds
     if enqueue:
         try:
             from app.workers.queue import enqueue_conversation_job
 
             rq_job = enqueue_conversation_job(str(conv.id), str(job.id))
             if rq_job:
+                q_now = utc_now()
+                job.state = "queued"
+                job.queued_at = q_now
                 job.rq_job_id = rq_job.id
+                job.milestones.append({"state": "queued", "timestamp": q_now.isoformat()})
+                conv.status = "queued"
                 session.add(job)
+                session.add(conv)
                 session.commit()
+            else:
+                logger.warning(
+                    f"Redis enqueue returned None for job {job.id}. Keeping state='received' with queued_at=None."
+                )
         except Exception as e:
             logger.warning(f"Could not immediately enqueue to Redis: {e}. Reconciler will recover.")
 

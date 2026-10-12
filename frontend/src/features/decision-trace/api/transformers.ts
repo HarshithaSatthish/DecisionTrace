@@ -52,7 +52,7 @@ interface BackendDecisionRaw {
     id: string;
     title: string;
     channel: string;
-    timestamp: string;
+    timestamp?: string;
     url?: string;
   };
   source_event_id?: string;
@@ -114,6 +114,7 @@ interface BackendApprovalRaw {
     topic?: string;
     new_value?: string;
     kind?: string;
+    impact?: string;
   };
   execution_key?: string;
   finding_id?: string | number;
@@ -132,6 +133,7 @@ interface BackendActivityRaw {
   entity_type?: 'decision' | 'commitment' | 'conflict' | 'approval' | 'conversation';
   entity_id?: string;
   timestamp?: string;
+  created_at?: string;
 }
 
 export function transformBackendOverview(raw: BackendOverviewRaw = {}): DashboardMetrics {
@@ -166,7 +168,7 @@ export function transformBackendOverview(raw: BackendOverviewRaw = {}): Dashboar
     }
   }
 
-  // Display unavailable trends honestly as empty array — never fabricate historical data points
+  // Honest trends: empty array when unavailable, never fabricated
   const decisionTrend =
     Array.isArray(raw.decisionTrend) && raw.decisionTrend.length > 0
       ? raw.decisionTrend
@@ -196,7 +198,7 @@ export function transformBackendDecisions(items: unknown[]): Decision[] {
       .replace(/\b\w/g, (c: string) => c.toUpperCase());
     const commitmentText = d.current_commitment || topicTitle;
 
-    // Honest confidence handling: only set when provided by backend, never fabricate 95%
+    // Honest confidence handling: only set when provided by backend, never fabricate
     const confidenceVal = d.confidence != null ? Number(d.confidence) : undefined;
     const confidenceLevelVal =
       d.confidenceLevel ||
@@ -208,31 +210,34 @@ export function transformBackendDecisions(items: unknown[]): Decision[] {
             : 'low'
         : undefined);
 
+    const createdTime = d.created_at || d.createdAt || '';
+    const updatedTime = d.updated_at || d.updatedAt || createdTime;
+
     return {
       id: String(d.id),
       title: d.title || topicTitle,
       summary: d.summary || commitmentText,
       whatWasDecided: d.whatWasDecided || commitmentText,
-      participants: Array.isArray(d.participants)
+      participants: Array.isArray(d.participants) && d.participants.length > 0
         ? d.participants
         : d.owner
           ? [d.owner]
-          : ['Team'],
-      createdAt: d.created_at || d.createdAt || new Date().toISOString(),
-      updatedAt: d.updated_at || d.updatedAt || new Date().toISOString(),
+          : [],
+      createdAt: createdTime,
+      updatedAt: updatedTime,
       status: (d.status || (d.state === 'active' ? 'active' : 'superseded')) as DecisionStatus,
       sourceConversation: d.sourceConversation || {
         id: d.source_event_id || 'conv-omi',
         title: topicTitle,
         channel: 'Voice (Omi)',
-        timestamp: d.updated_at || d.created_at || new Date().toISOString()
+        timestamp: updatedTime || createdTime || ''
       },
       evidence: Array.isArray(d.evidence) ? d.evidence : [],
       confidence: confidenceVal,
       confidenceLevel: confidenceLevelVal,
       relatedCommitmentIds: d.relatedCommitmentIds || [String(d.id)],
       category: d.category || d.topic || 'Engineering',
-      impactLevel: (d.impactLevel || 'high') as ImpactLevel
+      impactLevel: (d.impactLevel || 'medium') as ImpactLevel
     };
   });
 }
@@ -249,23 +254,19 @@ export function transformBackendDecisionsToCommitments(items: unknown[]): Commit
       .replace(/\b\w/g, (c: string) => c.toUpperCase());
     const commitmentText = d.current_commitment || d.task || topicTitle;
 
-    // Honest progress handling: only set when provided, never fabricate 50%
+    // Honest progress handling: only set when provided by backend
     const progressVal =
-      d.progressPercentage != null
-        ? Number(d.progressPercentage)
-        : d.status === 'completed'
-          ? 100
-          : undefined;
+      d.progressPercentage != null ? Number(d.progressPercentage) : undefined;
 
     return {
       id: String(d.id),
       title: d.title || topicTitle,
       task: commitmentText,
-      owner: d.owner || 'Unassigned',
+      owner: d.owner || '',
       ownerAvatar: d.ownerAvatar,
-      deadline: d.due_date || d.deadline || new Date().toISOString(),
+      deadline: d.due_date || d.deadline || '',
       status: (d.status || (d.state === 'active' ? 'in_progress' : 'completed')) as CommitmentStatus,
-      priority: d.priority || 'high',
+      priority: d.priority || undefined,
       relatedDecisionId: String(d.id),
       relatedDecisionTitle: topicTitle,
       evidence: Array.isArray(d.evidence) ? d.evidence : [],
@@ -297,7 +298,7 @@ export function transformBackendFindingsToConflicts(items: unknown[]): Conflict[
       const ev1 = f.evidence?.[0];
       const ev2 = f.evidence?.[1] || ev1;
 
-      // Honest vector similarity: only set when provided by Qdrant/backend, never fabricate 0.94 / 0.96
+      // Honest vector similarity: only set when provided by Qdrant/backend
       const sim1 =
         ev1?.vectorSimilarity != null
           ? Number(ev1.vectorSimilarity)
@@ -311,19 +312,23 @@ export function transformBackendFindingsToConflicts(items: unknown[]): Conflict[
             ? Number(ev2.similarity)
             : undefined;
 
+      const detectedTime = f.created_at || '';
+      const prevTime = ev1?.source_time || detectedTime;
+      const newerTime = ev2?.source_time || detectedTime;
+
       return {
         id: String(f.id),
         title: `Contradiction: ${topic}`,
-        severity: (f.confidence === 'high' ? 'high' : 'medium') as ImpactLevel,
+        severity: ((f.severity as ImpactLevel) || (f.confidence === 'high' ? 'high' : 'medium')) as ImpactLevel,
         explanation:
           f.explanation ||
           `Contradiction between historical agreement and new statement on ${topic}.`,
         status: (f.status === 'pending_approval' ? 'unresolved' : 'resolved') as ConflictResolutionStatus,
-        detectedAt: f.created_at || new Date().toISOString(),
+        detectedAt: detectedTime,
         previousDecision: {
           id: `prev-${f.id}`,
           title: `Prior Agreement: ${topic}`,
-          timestamp: ev1?.source_time || f.created_at || new Date().toISOString(),
+          timestamp: prevTime,
           decisionText: f.previous_value || ev1?.excerpt || 'Original agreement',
           source: 'Omi Memory',
           evidence: {
@@ -331,7 +336,7 @@ export function transformBackendFindingsToConflicts(items: unknown[]): Conflict[
             sourceType: 'meeting',
             sourceTitle: 'Prior Conversation',
             speakerOrAuthor: 'Team Member',
-            timestamp: ev1?.source_time || f.created_at || new Date().toISOString(),
+            timestamp: prevTime,
             quote: ev1?.excerpt || f.previous_value || 'Original agreement quote',
             vectorSimilarity: sim1
           }
@@ -339,7 +344,7 @@ export function transformBackendFindingsToConflicts(items: unknown[]): Conflict[
         newerDecision: {
           id: `new-${f.id}`,
           title: `New Revision: ${topic}`,
-          timestamp: ev2?.source_time || f.created_at || new Date().toISOString(),
+          timestamp: newerTime,
           decisionText: f.new_value || ev2?.excerpt || 'Proposed change',
           source: 'Omi Memory',
           evidence: {
@@ -347,7 +352,7 @@ export function transformBackendFindingsToConflicts(items: unknown[]): Conflict[
             sourceType: 'meeting',
             sourceTitle: 'Recent Meeting',
             speakerOrAuthor: 'Team Member',
-            timestamp: ev2?.source_time || f.created_at || new Date().toISOString(),
+            timestamp: newerTime,
             quote: ev2?.excerpt || f.new_value || 'New statement quote',
             vectorSimilarity: sim2
           }
@@ -375,10 +380,10 @@ export function transformBackendApprovals(items: unknown[]): ApprovalRequest[] {
           ? 'supersede_decision'
           : 'override_conflict',
       proposedBy: `Lyzr Autonomous Guardian (${r.requester || 'Agent'})`,
-      requestedAt: r.created_at || new Date().toISOString(),
+      requestedAt: r.created_at || '',
       status: (r.status === 'pending' ? 'pending' : r.status === 'approved' ? 'approved' : 'rejected') as ApprovalStatus,
-      impactLevel: 'high' as ImpactLevel,
-      exactActionPreview: `Execute atomic mutation on decision '${r.action_payload?.topic}' -> '${r.action_payload?.new_value}' (Key: ${r.execution_key})`,
+      impactLevel: ((r.action_payload?.impact as ImpactLevel) || 'medium') as ImpactLevel,
+      exactActionPreview: `Execute atomic mutation on decision '${r.action_payload?.topic || topic}' -> '${r.action_payload?.new_value || ''}' (Key: ${r.execution_key || 'verified'})`,
       targetEntityId: String(r.finding_id || r.id),
       targetEntityType: 'decision',
       evidence: r.evidence || []
@@ -410,15 +415,14 @@ export function transformBackendActivity(items: unknown[]): ActivityItem[] {
       description:
         a.description ||
         `${a.actor_type || 'User'} recorded ${actionLabel} on ${a.entity_type || 'system'}`,
-      timestamp: a.timestamp || new Date().toISOString(),
-      actor: a.actor_id || a.actor || 'System',
+      timestamp: a.timestamp || a.created_at || '',
+      actor: a.actor_id || a.actor || '',
       entityId: a.entity_id,
       entityType: a.entity_type,
       statusBadge: a.action
     };
   });
 }
-
 
 export interface BackendConversationRaw {
   id: string;
@@ -447,8 +451,8 @@ export function transformBackendConversations(items: unknown[]): OmiConversation
         (c.normalized_transcript
           ? c.normalized_transcript.slice(0, 140) + '...'
           : 'No transcript available'),
-      sourceTime: c.source_time || new Date().toISOString(),
-      createdAt: c.created_at || new Date().toISOString(),
+      sourceTime: c.source_time || '',
+      createdAt: c.created_at || '',
       status: (c.status || 'pending') as OmiConversation['status']
     };
   });
@@ -476,8 +480,8 @@ export function transformBackendConversationDetail(raw: unknown): OmiConversatio
         ? c.normalized_transcript.slice(0, 140) + '...'
         : ''),
     normalizedTranscript: c.normalized_transcript || '',
-    sourceTime: c.source_time || new Date().toISOString(),
-    createdAt: c.created_at || new Date().toISOString(),
+    sourceTime: c.source_time || '',
+    createdAt: c.created_at || '',
     status: (c.status || 'pending') as OmiConversation['status'],
     chunks
   };

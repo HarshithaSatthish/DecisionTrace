@@ -366,13 +366,12 @@ async function fetchClientEndpoint<T>(
 export async function getDashboardMetrics(
   options?: { authHeaders?: Record<string, string> }
 ): Promise<DashboardMetrics> {
-  const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
-  if (!backendUrl) {
-    if (isDevPreviewEnabled()) return FIXTURE_METRICS;
-    return EMPTY_METRICS;
-  }
-
   if (isServer()) {
+    const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
+    if (!backendUrl) {
+      if (isDevPreviewEnabled()) return FIXTURE_METRICS;
+      return EMPTY_METRICS;
+    }
     try {
       return await fetchBackendOnServer(
         '/overview',
@@ -420,13 +419,12 @@ export async function getDecisions(
   if (filters?.category && filters.category !== 'all') params.set('category', filters.category);
   const qs = params.toString() ? `?${params.toString()}` : '';
 
-  const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
-  if (!backendUrl) {
-    if (isDevPreviewEnabled()) return filterFixtureDecisions(filters);
-    return [];
-  }
-
   if (isServer()) {
+    const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
+    if (!backendUrl) {
+      if (isDevPreviewEnabled()) return filterFixtureDecisions(filters);
+      return [];
+    }
     try {
       return await fetchBackendOnServer(
         `/decisions${qs}`,
@@ -502,13 +500,12 @@ export async function getCommitments(
   if (filters?.priority && filters.priority !== 'all') params.set('priority', filters.priority);
   const qs = params.toString() ? `?${params.toString()}` : '';
 
-  const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
-  if (!backendUrl) {
-    if (isDevPreviewEnabled()) return filterFixtureCommitments(filters);
-    return [];
-  }
-
   if (isServer()) {
+    const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
+    if (!backendUrl) {
+      if (isDevPreviewEnabled()) return filterFixtureCommitments(filters);
+      return [];
+    }
     try {
       // Calls /decisions under the implemented decision-derived data contract
       return await fetchBackendOnServer(
@@ -573,13 +570,12 @@ export async function getConflicts(
   if (filters?.severity && filters.severity !== 'all') params.set('severity', filters.severity);
   const qs = params.toString() ? `?${params.toString()}` : '';
 
-  const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
-  if (!backendUrl) {
-    if (isDevPreviewEnabled()) return filterFixtureConflicts(filters);
-    return [];
-  }
-
   if (isServer()) {
+    const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
+    if (!backendUrl) {
+      if (isDevPreviewEnabled()) return filterFixtureConflicts(filters);
+      return [];
+    }
     try {
       // Calls /findings under the implemented findings contract
       return await fetchBackendOnServer(
@@ -642,13 +638,12 @@ export async function getApprovals(
   if (filters?.status && filters.status !== 'all') params.set('status', filters.status);
   const qs = params.toString() ? `?${params.toString()}` : '';
 
-  const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
-  if (!backendUrl) {
-    if (isDevPreviewEnabled()) return filterFixtureApprovals(filters);
-    return [];
-  }
-
   if (isServer()) {
+    const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
+    if (!backendUrl) {
+      if (isDevPreviewEnabled()) return filterFixtureApprovals(filters);
+      return [];
+    }
     try {
       return await fetchBackendOnServer(
         `/approvals${qs}`,
@@ -707,13 +702,12 @@ export async function getActivity(
   if (filters?.type && filters.type !== 'all') params.set('type', filters.type);
   const qs = params.toString() ? `?${params.toString()}` : '';
 
-  const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
-  if (!backendUrl) {
-    if (isDevPreviewEnabled()) return filterFixtureActivity(filters);
-    return [];
-  }
-
   if (isServer()) {
+    const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
+    if (!backendUrl) {
+      if (isDevPreviewEnabled()) return filterFixtureActivity(filters);
+      return [];
+    }
     try {
       return await fetchBackendOnServer(
         `/activity${qs}`,
@@ -946,13 +940,11 @@ export async function getConversations(
   options?: { authHeaders?: Record<string, string> }
 ): Promise<OmiConversation[]> {
   const qs = filters?.limit ? `?limit=${filters.limit}&offset=${filters.offset || 0}` : '';
-  const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
-
-  if (!backendUrl) {
-    return [];
-  }
-
   if (isServer()) {
+    const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
+    if (!backendUrl) {
+      return [];
+    }
     try {
       return await fetchBackendOnServer(
         `/conversations${qs}`,
@@ -991,12 +983,11 @@ export async function getConversationDetail(
   id: string,
   options?: { authHeaders?: Record<string, string> }
 ): Promise<OmiConversationDetail> {
-  const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
-  if (!backendUrl) {
-    throw new Error('Backend URL is not configured');
-  }
-
   if (isServer()) {
+    const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
+    if (!backendUrl) {
+      throw new Error('Backend URL is not configured');
+    }
     return await fetchBackendOnServer(
       `/conversations/${id}`,
       (raw) => transformBackendConversationDetail(raw),
@@ -1011,12 +1002,11 @@ export async function getConversationDetail(
 export async function getOmiIntegrationStatus(options?: {
   authHeaders?: Record<string, string>;
 }): Promise<OmiIntegrationStatus> {
-  const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
-  if (!backendUrl) {
-    return { connected: false };
-  }
-
   if (isServer()) {
+    const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
+    if (!backendUrl) {
+      return { connected: false };
+    }
     try {
       return await fetchBackendOnServer(
         `/integrations/omi/status`,

@@ -46,12 +46,17 @@ def reconcile_pending_jobs(batch_size: int = 50, db_session: Session | None = No
                 f"Reconciling job {job.id} (previous_state={job.state}) for conversation {job.conversation_id}"
             )
             rq_job = enqueue_conversation_job(str(job.conversation_id), str(job.id))
-            job.state = "queued"
-            job.queued_at = now
+            # Never mark a job queued or refresh queued_at when Redis enqueue fails
             if rq_job is not None:
+                job.state = "queued"
+                job.queued_at = now
                 job.rq_job_id = rq_job.id
-            session.add(job)
-            reconciled_count += 1
+                session.add(job)
+                reconciled_count += 1
+            else:
+                logger.warning(
+                    f"Redis enqueue failed during reconcile for job {job.id}; keeping state='{job.state}' without refreshing queued_at"
+                )
 
         session.commit()
         logger.info(f"Reconciled {reconciled_count} orphan/interrupted jobs")
