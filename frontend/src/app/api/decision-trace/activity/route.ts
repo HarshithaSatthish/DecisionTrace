@@ -67,15 +67,6 @@ export async function GET(request: NextRequest) {
         });
         return NextResponse.json(mapped);
       }
-      if (res && (res.status === 401 || res.status === 403)) {
-        return NextResponse.json(
-          {
-            error: res.status === 401 ? 'Unauthorized upstream request' : 'Forbidden upstream request',
-            code: res.status === 401 ? 'UPSTREAM_UNAUTHORIZED' : 'UPSTREAM_FORBIDDEN'
-          },
-          { status: res.status }
-        );
-      }
       if (res && res.status >= 500) {
         return NextResponse.json(
           {

@@ -1,5 +1,5 @@
 // ============================================================================
-// DecisionTrace Service  Centralized API Integration Layer
+// DecisionTrace Service — Centralized API Integration Layer
 // Connects to FastAPI / Qdrant / Lyzr backend via Next.js Route Handlers
 // ============================================================================
 
@@ -16,8 +16,7 @@ import {
   ConflictResolvePayload,
   ActivityItem,
   ActivityFilters,
-  DashboardMetrics,
-  AttentionItem
+  DashboardMetrics
 } from '../types';
 import {
   FIXTURE_DECISIONS,
@@ -40,26 +39,10 @@ export const EMPTY_METRICS: DashboardMetrics = {
   isProductionOffline: true
 };
 
-/**
- * Structured API Error for DecisionTrace client and server requests.
- * Never leaks stack traces or internal server details.
- */
-export class DecisionTraceApiError extends Error {
-  public statusCode?: number;
-  public code?: string;
-
-  constructor(message: string, statusCode?: number, code?: string) {
-    super(message);
-    this.name = 'DecisionTraceApiError';
-    this.statusCode = statusCode;
-    this.code = code;
-  }
-}
 
 // ----------------------------------------------------------------------------
-// FRANZY #8 & #9: Multi-Tenant Ephemeral In-Memory Client Cache
+// FRANZY #8 & #9: Per-User Ephemeral In-Memory Client Cache
 // 15s TTL for read-only query deduplication with automatic invalidation on mutations.
-// Keys are strictly scoped to the active tenant/organization and user.
 // Never persists execution keys or tokens, never shared across browser sessions.
 // ----------------------------------------------------------------------------
 interface CacheEntry<T> {
@@ -69,216 +52,55 @@ interface CacheEntry<T> {
 const _clientMemoryCache = new Map<string, CacheEntry<unknown>>();
 const DEFAULT_CACHE_TTL_MS = 15000;
 
-let _activeTenantScope = 'global';
-
-/**
- * Sets the active tenant/user scope for the client-side memory cache.
- * Automatically purges cached entries if the scope changes, preventing
- * any cross-tenant or cross-user data leakage.
- */
-export function setClientCacheScope(scope: string): void {
-  if (_activeTenantScope !== scope) {
-    _clientMemoryCache.clear();
-    _activeTenantScope = scope;
-  }
-}
-
 export function invalidateClientCache(): void {
   _clientMemoryCache.clear();
 }
 
-function getActiveTenantScope(): string {
-  if (typeof window !== 'undefined') {
-    const clerk = (
-      window as unknown as {
-        Clerk?: {
-          user?: { id?: string };
-          organization?: { id?: string };
-          session?: { lastActiveOrganizationId?: string };
-        };
-      }
-    ).Clerk;
-    if (clerk?.user?.id) {
-      const org = clerk.organization?.id || clerk.session?.lastActiveOrganizationId || 'personal';
-      return `${org}:${clerk.user.id}`;
-    }
-  }
-  return _activeTenantScope;
-}
-
 function getFromClientCache<T>(key: string): T | null {
-  const scopedKey = `${getActiveTenantScope()}:${key}`;
-  const entry = _clientMemoryCache.get(scopedKey);
+  if (typeof window === 'undefined') return null;
+  const entry = _clientMemoryCache.get(key);
   if (!entry) return null;
   if (Date.now() > entry.expiresAt) {
-    _clientMemoryCache.delete(scopedKey);
+    _clientMemoryCache.delete(key);
     return null;
   }
   return entry.data as T;
 }
 
 function setInClientCache<T>(key: string, data: T, ttlMs = DEFAULT_CACHE_TTL_MS): void {
-  const scopedKey = `${getActiveTenantScope()}:${key}`;
-  _clientMemoryCache.set(scopedKey, { data, expiresAt: Date.now() + ttlMs });
+  if (typeof window === 'undefined') return;
+  _clientMemoryCache.set(key, { data, expiresAt: Date.now() + ttlMs });
 }
 
-/**
- * Maps HTTP status codes into sanitized, user-friendly errors.
- * Strictly prevents leaking internal server details or stack traces.
- */
-function createSafeApiError(status: number, messageOrDetail?: string): DecisionTraceApiError {
-  if (status === 401) {
-    return new DecisionTraceApiError(
-      'Authentication required. Please sign in to continue.',
-      401,
-      'UNAUTHORIZED'
-    );
-  }
-  if (status === 403) {
-    return new DecisionTraceApiError(
-      'Access denied: You do not have permission to view this resource.',
-      403,
-      'FORBIDDEN'
-    );
-  }
-  if (status === 502) {
-    return new DecisionTraceApiError(
-      'Upstream gateway error. Service is temporarily unreachable.',
-      502,
-      'BAD_GATEWAY'
-    );
-  }
-  if (status === 503) {
-    return new DecisionTraceApiError(
-      'Service temporarily unavailable. Please try again shortly.',
-      503,
-      'SERVICE_UNAVAILABLE'
-    );
-  }
-  if (status >= 500) {
-    return new DecisionTraceApiError(
-      `Internal server error (HTTP ${status}). Please try again later.`,
-      status,
-      'SERVER_ERROR'
-    );
-  }
-  return new DecisionTraceApiError(
-    messageOrDetail || `Request failed with HTTP ${status}.`,
-    status,
-    'API_ERROR'
-  );
-}
-
-/**
- * Centralized fetch helper with abort controller timeout and honest error handling.
- */
-async function fetchEndpoint<T>(
-  clientUrl: string,
-  serverUrl: string | undefined,
-  cacheKey: string,
-  options?: RequestInit,
-  timeoutMs = 10000
-): Promise<T | null> {
-  const isClient = typeof window !== 'undefined';
-  const cached = getFromClientCache<T>(cacheKey);
-  if (cached !== null) return cached;
-
-  const targetUrl = isClient ? clientUrl : serverUrl;
-  if (!targetUrl) {
-    return null;
-  }
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-  let res: Response;
-  try {
-    res = await fetch(targetUrl, {
-      ...options,
-      signal: controller.signal
-    });
-  } catch (err: unknown) {
-    clearTimeout(timeoutId);
-    if (err instanceof Error && err.name === 'AbortError') {
-      throw new DecisionTraceApiError(
-        'Request timed out. Please check your network connection.',
-        408,
-        'TIMEOUT'
-      );
-    }
-    throw new DecisionTraceApiError(
-      'Network error: Failed to connect to backend service. Please check your connection.',
-      0,
-      'NETWORK_ERROR'
-    );
-  } finally {
-    clearTimeout(timeoutId);
-  }
-
-  if (!res.ok) {
-    let detail: string | undefined;
-    try {
-      const errJson = await res.json();
-      detail =
-        typeof errJson?.error === 'string'
-          ? errJson.error
-          : typeof errJson?.detail === 'string'
-            ? errJson.detail
-            : undefined;
-    } catch {
-      // Non-JSON response
-    }
-    throw createSafeApiError(res.status, detail);
-  }
-
-  const data = (await res.json()) as T;
-  setInClientCache(cacheKey, data);
-  return data;
-}
-
+// Helper to determine if we should attempt direct FastAPI backend or proxy handler
 export async function getDashboardMetrics(): Promise<DashboardMetrics> {
   const cacheKey = 'metrics:overview';
-  const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
-  const serverUrl = backendUrl ? `${backendUrl}/metrics` : undefined;
+  const cached = getFromClientCache<DashboardMetrics>(cacheKey);
+  if (cached) return cached;
 
   try {
-    const rawData = await fetchEndpoint<Record<string, unknown>>(
-      '/api/decision-trace/metrics',
-      serverUrl,
-      cacheKey,
-      { cache: 'no-store' }
-    );
-
-    if (rawData !== null) {
-      const activeCount = (rawData.active_decisions ?? rawData.activeDecisionsCount ?? 0) as number;
-      const pendingCount = (rawData.pending_approvals ?? rawData.pendingApprovalsCount ?? 0) as number;
-      const findingsCount = (rawData.recent_findings ?? rawData.detectedConflictsCount ?? 0) as number;
-
-      const attentionItems = (rawData.attentionItems ?? []) as AttentionItem[];
-      const decisionTrend = (rawData.decisionTrend ?? []) as {
-        period: string;
-        decisions: number;
-        commitments: number;
-      }[];
-      const recentActivity = (rawData.recentActivity ?? []) as ActivityItem[];
-
-      return {
-        activeDecisionsCount: activeCount,
-        openCommitmentsCount: (rawData.openCommitmentsCount ?? activeCount) as number,
-        detectedConflictsCount: findingsCount,
-        pendingApprovalsCount: pendingCount,
-        decisionTrend,
-        attentionItems,
-        recentActivity,
-        isProductionOffline: false
-      };
+    if (typeof window !== 'undefined') {
+      const res = await fetch('/api/decision-trace/metrics');
+      if (res.ok) {
+        const data = (await res.json()) as DashboardMetrics;
+        setInClientCache(cacheKey, data);
+        return data;
+      }
+      if (res.status >= 500) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Server error ${res.status}: Failed to load metrics.`);
+      }
+    } else {
+      const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
+      if (backendUrl) {
+        const res = await fetch(`${backendUrl}/metrics`, { cache: 'no-store' });
+        if (res.ok) {
+          return (await res.json()) as DashboardMetrics;
+        }
+      }
     }
   } catch (error) {
-    if (isDevPreviewEnabled()) {
-      console.warn('Backend metrics fetch failed, serving preview metrics:', error);
-      return FIXTURE_METRICS;
-    }
-    throw error;
+    console.warn('Backend metrics fetch failed, evaluating preview mode:', error);
   }
 
   if (isDevPreviewEnabled()) {
@@ -288,54 +110,60 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
 }
 
 export async function getDecisions(filters?: DecisionFilters): Promise<Decision[]> {
-  const params = new URLSearchParams();
-  if (filters?.search) params.set('search', filters.search);
-  if (filters?.status && filters.status !== 'all') params.set('status', filters.status);
-  if (filters?.category && filters.category !== 'all') params.set('category', filters.category);
-  const qs = params.toString() ? `?${params.toString()}` : '';
-
-  const cacheKey = `decisions:${qs}`;
-  const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
-  const serverUrl = backendUrl ? `${backendUrl}/decisions${qs}` : undefined;
-
   try {
-    const raw = await fetchEndpoint<unknown>(
-      `/api/decision-trace/decisions${qs}`,
-      serverUrl,
-      cacheKey,
-      { cache: 'no-store' }
-    );
+    const params = new URLSearchParams();
+    if (filters?.search) params.set('search', filters.search);
+    if (filters?.status && filters.status !== 'all') params.set('status', filters.status);
+    if (filters?.category && filters.category !== 'all') params.set('category', filters.category);
+    const qs = params.toString() ? `?${params.toString()}` : '';
 
-    if (raw !== null) {
-      const items = Array.isArray(raw)
-        ? (raw as Decision[])
-        : ((raw as { items?: Decision[] }).items ?? []);
-      return items;
+    const cacheKey = `decisions:${qs}`;
+    const cached = getFromClientCache<Decision[]>(cacheKey);
+    if (cached) return cached;
+
+    if (typeof window !== 'undefined') {
+      const res = await fetch(`/api/decision-trace/decisions${qs}`);
+      if (res.ok) {
+        const data = await res.json();
+        const items = Array.isArray(data) ? data : (data.items ?? []);
+        setInClientCache(cacheKey, items);
+        return items;
+      }
+      if (res.status >= 500) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Server error ${res.status}: Failed to load decisions.`);
+      }
+    } else {
+      const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
+      if (backendUrl) {
+        const res = await fetch(`${backendUrl}/decisions${qs}`, { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          return Array.isArray(data) ? data : (data.items ?? []);
+        }
+      }
     }
   } catch (error) {
-    if (isDevPreviewEnabled()) {
-      console.warn('Backend decisions fetch failed, serving preview decisions:', error);
-      let result = [...FIXTURE_DECISIONS];
-      if (filters?.search) {
-        const q = filters.search.toLowerCase();
-        result = result.filter(
-          (d) =>
-            d.title.toLowerCase().includes(q) ||
-            d.whatWasDecided.toLowerCase().includes(q) ||
-            d.summary.toLowerCase().includes(q)
-        );
-      }
-      if (filters?.status && filters.status !== 'all') {
-        result = result.filter((d) => d.status === filters.status);
-      }
-      return result;
-    }
-    throw error;
+    console.warn('Backend decisions fetch failed, evaluating preview mode:', error);
   }
 
   if (isDevPreviewEnabled()) {
-    return FIXTURE_DECISIONS;
+    let result = [...FIXTURE_DECISIONS];
+    if (filters?.search) {
+      const q = filters.search.toLowerCase();
+      result = result.filter(
+        (d) =>
+          d.title.toLowerCase().includes(q) ||
+          d.whatWasDecided.toLowerCase().includes(q) ||
+          d.summary.toLowerCase().includes(q)
+      );
+    }
+    if (filters?.status && filters.status !== 'all') {
+      result = result.filter((d) => d.status === filters.status);
+    }
+    return result;
   }
+
   return [];
 }
 
@@ -345,54 +173,54 @@ export async function getDecisionById(id: string): Promise<Decision | null> {
 }
 
 export async function getCommitments(filters?: CommitmentFilters): Promise<Commitment[]> {
-  const params = new URLSearchParams();
-  if (filters?.status && filters.status !== 'all') params.set('status', filters.status);
-  if (filters?.owner && filters.owner !== 'all') params.set('owner', filters.owner);
-  if (filters?.priority && filters.priority !== 'all') params.set('priority', filters.priority);
-  const qs = params.toString() ? `?${params.toString()}` : '';
-
-  const cacheKey = `commitments:${qs}`;
-  const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
-  const serverUrl = backendUrl ? `${backendUrl}/commitments${qs}` : undefined;
-
   try {
-    const raw = await fetchEndpoint<unknown>(
-      `/api/decision-trace/commitments${qs}`,
-      serverUrl,
-      cacheKey,
-      { cache: 'no-store' }
-    );
+    const params = new URLSearchParams();
+    if (filters?.status && filters.status !== 'all') params.set('status', filters.status);
+    if (filters?.owner && filters.owner !== 'all') params.set('owner', filters.owner);
+    if (filters?.priority && filters.priority !== 'all') params.set('priority', filters.priority);
+    const qs = params.toString() ? `?${params.toString()}` : '';
 
-    if (raw !== null) {
-      const items = Array.isArray(raw)
-        ? (raw as Commitment[])
-        : ((raw as { items?: Commitment[] }).items ?? []);
-      return items;
+    if (typeof window !== 'undefined') {
+      const res = await fetch(`/api/decision-trace/commitments${qs}`);
+      if (res.ok) {
+        const data = await res.json();
+        return Array.isArray(data) ? data : (data.items ?? []);
+      }
+      if (res.status >= 500) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Server error ' + res.status + ': Failed to load commitments.');
+      }
+    } else {
+      const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
+      if (backendUrl) {
+        const res = await fetch(`${backendUrl}/commitments${qs}`, { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          return Array.isArray(data) ? data : (data.items ?? []);
+        }
+      }
     }
   } catch (error) {
-    if (isDevPreviewEnabled()) {
-      console.warn('Backend commitments fetch failed, serving preview commitments:', error);
-      let result = [...FIXTURE_COMMITMENTS];
-      if (filters?.search) {
-        const q = filters.search.toLowerCase();
-        result = result.filter(
-          (c) => c.title.toLowerCase().includes(q) || c.task.toLowerCase().includes(q)
-        );
-      }
-      if (filters?.status && filters.status !== 'all') {
-        result = result.filter((c) => c.status === filters.status);
-      }
-      if (filters?.priority && filters.priority !== 'all') {
-        result = result.filter((c) => c.priority === filters.priority);
-      }
-      return result;
-    }
-    throw error;
+    console.warn('Backend commitments fetch failed, evaluating preview mode:', error);
   }
 
   if (isDevPreviewEnabled()) {
-    return FIXTURE_COMMITMENTS;
+    let result = [...FIXTURE_COMMITMENTS];
+    if (filters?.search) {
+      const q = filters.search.toLowerCase();
+      result = result.filter(
+        (c) => c.title.toLowerCase().includes(q) || c.task.toLowerCase().includes(q)
+      );
+    }
+    if (filters?.status && filters.status !== 'all') {
+      result = result.filter((c) => c.status === filters.status);
+    }
+    if (filters?.priority && filters.priority !== 'all') {
+      result = result.filter((c) => c.priority === filters.priority);
+    }
+    return result;
   }
+
   return [];
 }
 
@@ -418,8 +246,6 @@ export async function updateCommitmentStatus(
         body.error || body.detail || `Commitment persistence failed with HTTP ${res.status}`
       );
     }
-    // Bust client cache on state mutation
-    invalidateClientCache();
     return body as Commitment;
   } catch (err: unknown) {
     clearTimeout(timeoutId);
@@ -431,43 +257,43 @@ export async function updateCommitmentStatus(
 }
 
 export async function getConflicts(filters?: ConflictFilters): Promise<Conflict[]> {
-  const params = new URLSearchParams();
-  if (filters?.status && filters.status !== 'all') params.set('status', filters.status);
-  const qs = params.toString() ? `?${params.toString()}` : '';
-
-  const cacheKey = `conflicts:${qs}`;
-  const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
-  const serverUrl = backendUrl ? `${backendUrl}/conflicts${qs}` : undefined;
-
   try {
-    const raw = await fetchEndpoint<unknown>(
-      `/api/decision-trace/conflicts${qs}`,
-      serverUrl,
-      cacheKey,
-      { cache: 'no-store' }
-    );
+    const params = new URLSearchParams();
+    if (filters?.status && filters.status !== 'all') params.set('status', filters.status);
+    const qs = params.toString() ? `?${params.toString()}` : '';
 
-    if (raw !== null) {
-      const items = Array.isArray(raw)
-        ? (raw as Conflict[])
-        : ((raw as { items?: Conflict[] }).items ?? []);
-      return items;
+    if (typeof window !== 'undefined') {
+      const res = await fetch(`/api/decision-trace/conflicts${qs}`);
+      if (res.ok) {
+        const data = await res.json();
+        return Array.isArray(data) ? data : (data.items ?? []);
+      }
+      if (res.status >= 500) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Server error ${res.status}: Failed to load conflicts.`);
+      }
+    } else {
+      const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
+      if (backendUrl) {
+        const res = await fetch(`${backendUrl}/conflicts${qs}`, { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          return Array.isArray(data) ? data : (data.items ?? []);
+        }
+      }
     }
   } catch (error) {
-    if (isDevPreviewEnabled()) {
-      console.warn('Backend conflicts fetch failed, serving preview conflicts:', error);
-      let result = [...FIXTURE_CONFLICTS];
-      if (filters?.status && filters.status !== 'all') {
-        result = result.filter((c) => c.status === filters.status);
-      }
-      return result;
-    }
-    throw error;
+    console.warn('Backend conflicts fetch failed, evaluating preview mode:', error);
   }
 
   if (isDevPreviewEnabled()) {
-    return FIXTURE_CONFLICTS;
+    let result = [...FIXTURE_CONFLICTS];
+    if (filters?.status && filters.status !== 'all') {
+      result = result.filter((c) => c.status === filters.status);
+    }
+    return result;
   }
+
   return [];
 }
 
@@ -506,43 +332,49 @@ export async function resolveConflict(
 }
 
 export async function getApprovals(filters?: ApprovalFilters): Promise<ApprovalRequest[]> {
-  const params = new URLSearchParams();
-  if (filters?.status && filters.status !== 'all') params.set('status', filters.status);
-  const qs = params.toString() ? `?${params.toString()}` : '';
-
-  const cacheKey = `approvals:${qs}`;
-  const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
-  const serverUrl = backendUrl ? `${backendUrl}/approvals${qs}` : undefined;
-
   try {
-    const raw = await fetchEndpoint<unknown>(
-      `/api/decision-trace/approvals${qs}`,
-      serverUrl,
-      cacheKey,
-      { cache: 'no-store' }
-    );
+    const params = new URLSearchParams();
+    if (filters?.status && filters.status !== 'all') params.set('status', filters.status);
+    const qs = params.toString() ? `?${params.toString()}` : '';
 
-    if (raw !== null) {
-      const items = Array.isArray(raw)
-        ? (raw as ApprovalRequest[])
-        : ((raw as { items?: ApprovalRequest[] }).items ?? []);
-      return items;
+    const cacheKey = `approvals:${qs}`;
+    const cached = getFromClientCache<ApprovalRequest[]>(cacheKey);
+    if (cached) return cached;
+
+    if (typeof window !== 'undefined') {
+      const res = await fetch(`/api/decision-trace/approvals${qs}`);
+      if (res.ok) {
+        const data = await res.json();
+        const items = Array.isArray(data) ? data : (data.items ?? []);
+        setInClientCache(cacheKey, items);
+        return items;
+      }
+      if (res.status >= 500) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Server error ${res.status}: Failed to load approvals.`);
+      }
+    } else {
+      const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
+      if (backendUrl) {
+        const res = await fetch(`${backendUrl}/approvals${qs}`, { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          return Array.isArray(data) ? data : (data.items ?? []);
+        }
+      }
     }
   } catch (error) {
-    if (isDevPreviewEnabled()) {
-      console.warn('Backend approvals fetch failed, serving preview approvals:', error);
-      let result = [...FIXTURE_APPROVALS];
-      if (filters?.status && filters.status !== 'all') {
-        result = result.filter((a) => a.status === filters.status);
-      }
-      return result;
-    }
-    throw error;
+    console.warn('Backend approvals fetch failed, evaluating preview mode:', error);
   }
 
   if (isDevPreviewEnabled()) {
-    return FIXTURE_APPROVALS;
+    let result = [...FIXTURE_APPROVALS];
+    if (filters?.status && filters.status !== 'all') {
+      result = result.filter((a) => a.status === filters.status);
+    }
+    return result;
   }
+
   return [];
 }
 
@@ -591,42 +423,38 @@ export async function executeApprovalAction(
 }
 
 export async function getActivity(filters?: ActivityFilters): Promise<ActivityItem[]> {
-  const params = new URLSearchParams();
-  if (filters?.type && filters.type !== 'all') params.set('type', filters.type);
-  const qs = params.toString() ? `?${params.toString()}` : '';
-
-  const cacheKey = `activity:${qs}`;
-  const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
-  const serverUrl = backendUrl ? `${backendUrl}/activity${qs}` : undefined;
-
   try {
-    const raw = await fetchEndpoint<unknown>(
-      `/api/decision-trace/activity${qs}`,
-      serverUrl,
-      cacheKey,
-      { cache: 'no-store' }
-    );
+    const params = new URLSearchParams();
+    if (filters?.type && filters.type !== 'all') params.set('type', filters.type);
+    const qs = params.toString() ? `?${params.toString()}` : '';
 
-    if (raw !== null) {
-      const items = Array.isArray(raw)
-        ? (raw as ActivityItem[])
-        : ((raw as { items?: ActivityItem[] }).items ?? []);
-      return items;
+    if (typeof window !== 'undefined') {
+      const res = await fetch(`/api/decision-trace/activity${qs}`);
+      if (res.ok) {
+        const data = await res.json();
+        return Array.isArray(data) ? data : (data.items ?? []);
+      }
+    } else {
+      const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
+      if (backendUrl) {
+        const res = await fetch(`${backendUrl}/activity${qs}`, { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          return Array.isArray(data) ? data : (data.items ?? []);
+        }
+      }
     }
   } catch (error) {
-    if (isDevPreviewEnabled()) {
-      console.warn('Backend activity fetch failed, serving preview activity:', error);
-      let result = [...FIXTURE_ACTIVITY];
-      if (filters?.type && filters.type !== 'all') {
-        result = result.filter((a) => a.type === filters.type);
-      }
-      return result;
-    }
-    throw error;
+    console.warn('Backend activity fetch failed, evaluating preview mode:', error);
   }
 
   if (isDevPreviewEnabled()) {
-    return FIXTURE_ACTIVITY;
+    let result = [...FIXTURE_ACTIVITY];
+    if (filters?.type && filters.type !== 'all') {
+      result = result.filter((a) => a.type === filters.type);
+    }
+    return result;
   }
+
   return [];
 }
