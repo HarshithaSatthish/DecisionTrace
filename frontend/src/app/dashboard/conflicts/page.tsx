@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Conflicts Guardian — DecisionTrace',
+  title: 'Conflicts',
   description: 'Evidence-backed contradiction detector comparing historical and recent decisions'
 };
 
@@ -16,7 +16,7 @@ export default async function ConflictsPage() {
 
   return (
     <PageContainer>
-      <div className='flex flex-1 flex-col gap-4'>
+      <div className='flex flex-1 flex-col gap-4 min-w-0 max-w-full'>
         <DevelopmentPreviewBanner />
 
         <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/40 pb-3'>

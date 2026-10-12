@@ -86,7 +86,7 @@ export function DecisionsTable({ initialDecisions, initialCommitments }: Decisio
 
         <div className='flex flex-wrap items-center gap-2'>
           {/* Status Filter */}
-          <div className='flex items-center gap-1 border border-border/80 rounded-md p-1 bg-muted/20 text-xs'>
+          <div className='flex flex-wrap items-center gap-1 border border-border/80 rounded-md p-1 bg-muted/20 text-xs min-w-0 max-w-full'>
             {['all', 'active', 'under_review', 'superseded'].map((st) => (
               <Button
                 key={st}

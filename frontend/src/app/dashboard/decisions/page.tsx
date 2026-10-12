@@ -7,8 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Decisions Guardian — DecisionTrace',
-  description: 'Searchable decision registry with verifiable conversation evidence references'
+  title: 'Decisions',
+  description: 'Searchable decision registry with verifiable conversation evidence and consensus verification'
 };
 
 export default async function DecisionsPage() {
@@ -16,7 +16,7 @@ export default async function DecisionsPage() {
 
   return (
     <PageContainer>
-      <div className='flex flex-1 flex-col gap-4'>
+      <div className='flex flex-1 flex-col gap-4 min-w-0 max-w-full'>
         <DevelopmentPreviewBanner />
 
         <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/40 pb-3'>

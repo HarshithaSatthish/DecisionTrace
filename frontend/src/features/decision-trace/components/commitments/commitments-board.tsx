@@ -130,7 +130,7 @@ export function CommitmentsBoard({ initialCommitments }: CommitmentsBoardProps) 
       </div>
 
       {/* Kanban Board Container */}
-      <div className='overflow-x-auto pb-4'>
+      <div className='w-full min-w-0 max-w-full overflow-x-auto pb-4'>
         <Kanban
           value={columns}
           onValueChange={(val) => handleValueChange(val as Record<string, Commitment[]>)}
