@@ -147,7 +147,7 @@ export function OmiSettingsCard({ initialStatus }: OmiSettingsCardProps) {
             Setup Instructions for Omi Wearable App
           </CardTitle>
           <CardDescription className='text-xs'>
-            Follow these 4 steps to link your device with zero cloud-relay delay.
+            Follow these 4 steps to configure your Omi webhook integration.
           </CardDescription>
         </CardHeader>
         <CardContent className='space-y-3.5 text-xs'>
@@ -162,7 +162,7 @@ export function OmiSettingsCard({ initialStatus }: OmiSettingsCardProps) {
               <strong className='text-foreground'>Paste Webhook URL:</strong> Copy the personal webhook URL generated above and paste it into the Webhook URL field.
             </li>
             <li className='leading-relaxed'>
-              <strong className='text-foreground'>Enable Memory Events:</strong> Toggle <span className='text-foreground font-medium'>"Real-Time Audio Transcription Memory Events"</span> to <span className='text-emerald-600 dark:text-emerald-400 font-medium'>ON</span>.
+              <strong className='text-foreground'>Enable Memory Events:</strong> Toggle <span className='text-foreground font-medium'>"Memory Created Webhook Events"</span> to <span className='text-emerald-600 dark:text-emerald-400 font-medium'>ON</span>.
             </li>
           </ol>
 
