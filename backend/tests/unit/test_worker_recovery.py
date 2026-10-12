@@ -1,7 +1,9 @@
+from __future__ import annotations
 """Unit tests for worker restart, outbox reconciliation, and recovery behavior."""
 
 import uuid
 
+from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
 from app.db.models import Conversation, OmiIntegration, ProcessingJob, User, utc_now
