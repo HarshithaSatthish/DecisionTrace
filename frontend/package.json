@@ -17,7 +17,9 @@
     "lint:strict": "oxlint --deny-warnings",
     "format": "oxfmt --write . '!**/*.md' '!**/*.mdc' '!**/*.mdx' '!**/*.yml' '!**/*.yaml'",
     "format:check": "oxfmt --check . '!**/*.md' '!**/*.mdc' '!**/*.mdx' '!**/*.yml' '!**/*.yaml'",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test": "bun test",
+    "test:e2e": "python ../tests/e2e/run_e2e_tests.py"
   },
   "dependencies": {
     "@ai-sdk/react": "^4.0.47",
