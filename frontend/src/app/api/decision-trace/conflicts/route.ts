@@ -114,8 +114,25 @@ export async function GET() {
           });
         return NextResponse.json(mapped);
       }
-    } catch {
-      // Backend probe failed
+      if (res && res.status >= 500) {
+        return NextResponse.json(
+          {
+            error: `Upstream FastAPI backend error: HTTP ${res.status}`,
+            code: 'UPSTREAM_BACKEND_ERROR'
+          },
+          { status: res.status }
+        );
+      }
+    } catch (err: unknown) {
+      if (!isDevPreviewEnabled()) {
+        return NextResponse.json(
+          {
+            error: `Failed to connect to FastAPI backend: ${err instanceof Error ? err.message : 'Connection failed'}`,
+            code: 'BACKEND_CONNECTION_FAILED'
+          },
+          { status: 503 }
+        );
+      }
     }
   }
 

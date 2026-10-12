@@ -86,6 +86,10 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
         setInClientCache(cacheKey, data);
         return data;
       }
+      if (res.status >= 500) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Server error ${res.status}: Failed to load metrics.`);
+      }
     } else {
       const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
       if (backendUrl) {
@@ -124,6 +128,10 @@ export async function getDecisions(filters?: DecisionFilters): Promise<Decision[
         const items = Array.isArray(data) ? data : (data.items ?? []);
         setInClientCache(cacheKey, items);
         return items;
+      }
+      if (res.status >= 500) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Server error ${res.status}: Failed to load decisions.`);
       }
     } else {
       const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
@@ -177,6 +185,10 @@ export async function getCommitments(filters?: CommitmentFilters): Promise<Commi
       if (res.ok) {
         const data = await res.json();
         return Array.isArray(data) ? data : (data.items ?? []);
+      }
+      if (res.status >= 500) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Server error ' + res.status + ': Failed to load commitments.');
       }
     } else {
       const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
@@ -256,6 +268,10 @@ export async function getConflicts(filters?: ConflictFilters): Promise<Conflict[
         const data = await res.json();
         return Array.isArray(data) ? data : (data.items ?? []);
       }
+      if (res.status >= 500) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Server error ${res.status}: Failed to load conflicts.`);
+      }
     } else {
       const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
       if (backendUrl) {
@@ -332,6 +348,10 @@ export async function getApprovals(filters?: ApprovalFilters): Promise<ApprovalR
         const items = Array.isArray(data) ? data : (data.items ?? []);
         setInClientCache(cacheKey, items);
         return items;
+      }
+      if (res.status >= 500) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Server error ${res.status}: Failed to load approvals.`);
       }
     } else {
       const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
