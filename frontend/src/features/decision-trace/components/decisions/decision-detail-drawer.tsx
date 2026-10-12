@@ -1,5 +1,7 @@
 'use client';
 
+import { formatSafeDateTime } from '../../lib/format-date';
+
 import React from 'react';
 import {
   Sheet,
@@ -95,7 +97,7 @@ export function DecisionDetailDrawer({
                   </div>
                   <div className='text-muted-foreground text-[11px]'>
                     Channel: {decision.sourceConversation.channel} &bull;{' '}
-                    {new Date(decision.sourceConversation.timestamp).toLocaleString()}
+                    {formatSafeDateTime(decision.sourceConversation.timestamp)}
                   </div>
                 </div>
               </div>

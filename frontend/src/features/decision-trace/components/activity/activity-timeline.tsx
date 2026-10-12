@@ -1,5 +1,7 @@
 'use client';
 
+import { formatSafeDate, formatSafeTime } from '../../lib/format-date';
+
 import React, { useState, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -151,13 +153,12 @@ export function ActivityTimeline({ initialActivity }: ActivityTimelineProps) {
         ) : (
           filtered.map((item) => {
             const config = getEventBadge(item.type);
-            const dateObj = new Date(item.timestamp);
-            const formattedDate = dateObj.toLocaleDateString(undefined, {
+            const formattedDate = formatSafeDate(item.timestamp, {
               month: 'short',
               day: 'numeric',
               year: 'numeric'
             });
-            const formattedTime = dateObj.toLocaleTimeString([], {
+            const formattedTime = formatSafeTime(item.timestamp, {
               hour: '2-digit',
               minute: '2-digit'
             });

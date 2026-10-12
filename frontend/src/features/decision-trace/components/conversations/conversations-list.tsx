@@ -1,5 +1,7 @@
 'use client';
 
+import { formatSafeDate, formatSafeTime, formatSafeDateTime } from '../../lib/format-date';
+
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -161,7 +163,7 @@ export function ConversationsList({ initialConversations }: ConversationsListPro
                     </Badge>
                   </div>
                   <time className='text-xs text-muted-foreground tabular-nums'>
-                    Recorded on {new Date(conv.sourceTime).toLocaleDateString()} at{' '}
+                    Recorded on {formatSafeDate(conv.sourceTime)} at{' '}
                     {new Date(conv.sourceTime).toLocaleTimeString([], {
                       hour: '2-digit',
                       minute: '2-digit'
@@ -178,7 +180,7 @@ export function ConversationsList({ initialConversations }: ConversationsListPro
                 </p>
                 <div className='flex items-center justify-between pt-1'>
                   <span className='text-[11px] text-muted-foreground/80'>
-                    Received: {new Date(conv.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    Received: {formatSafeTime(conv.createdAt, { hour: '2-digit', minute: '2-digit' })}
                   </span>
                   <Button
                     size='sm'
@@ -224,7 +226,7 @@ export function ConversationsList({ initialConversations }: ConversationsListPro
                   <span className='text-muted-foreground block text-[11px]'>Source Timestamp</span>
                   <span className='font-medium'>
                     {selectedConversation?.sourceTime
-                      ? new Date(selectedConversation.sourceTime).toLocaleString()
+                      ? formatSafeDateTime(selectedConversation.sourceTime)
                       : 'N/A'}
                   </span>
                 </div>

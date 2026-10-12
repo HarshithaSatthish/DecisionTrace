@@ -35,7 +35,7 @@ export interface Decision {
     id: string;
     title: string;
     channel: string;
-    timestamp: string;
+    timestamp?: string;
     url?: string;
   };
   evidence: EvidenceReference[];
@@ -57,7 +57,7 @@ export interface Commitment {
   ownerAvatar?: string;
   deadline: string;
   status: CommitmentStatus;
-  priority: CommitmentPriority;
+  priority?: CommitmentPriority;
   relatedDecisionId: string;
   relatedDecisionTitle: string;
   evidence: EvidenceReference[];

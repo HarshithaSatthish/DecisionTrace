@@ -1,4 +1,4 @@
-"""Worker jobs: end-to-end conversation processing pipeline."""
+"""Background worker jobs for processing conversations through the Lyzr pipeline."""
 
 import asyncio
 import logging
@@ -36,7 +36,7 @@ def process_conversation_job(
     job_id_str: str,
     db_session: Session | None = None,
 ) -> dict[str, Any]:
-    """Worker entrypoint for processing a conversation with optional injected session."""
+    """Execute end-to-end conversation extraction, indexing, Lyzr multi-agent analysis."""
     conv_id = uuid.UUID(conversation_id_str)
     job_id = uuid.UUID(job_id_str)
 
@@ -57,20 +57,31 @@ def _execute_job_pipeline(
         logger.error(f"Job {job_id} or Conv {conv_id} not found in database")
         raise ValueError(f"Job {job_id} or Conv {conv_id} not found in database")
 
-    # Idempotency: skip if already completed
-    if job.state == "completed":
-        logger.info(f"Job {job_id} for conversation {conv_id} is already completed. Skipping.")
+    # Idempotency: treat both 'completed' and 'awaiting_approval' as already processed
+    if job.state in ("completed", "awaiting_approval"):
+        logger.info(
+            f"Job {job_id} for conversation {conv_id} is already in state '{job.state}'. Skipping."
+        )
         return {
             "status": "success",
             "conversation_id": str(conv.id),
-            "state": "completed",
+            "state": job.state,
             "already_completed": True,
         }
 
     # Preserve retry limits: refuse execution if maximum attempts exceeded
-    if job.state == "failed" and job.attempt_count >= 3:
-        logger.warning(f"Job {job_id} has exceeded maximum retry attempts ({job.attempt_count}).")
-        raise RuntimeError(f"Job {job_id} has exceeded maximum retry attempts ({job.attempt_count})")
+    if job.attempt_count >= 3:
+        logger.warning(
+            f"Job {job_id} has exceeded maximum retry attempts ({job.attempt_count})."
+        )
+        job.state = "failed"
+        conv.status = "failed"
+        session.add(job)
+        session.add(conv)
+        session.commit()
+        raise RuntimeError(
+            f"Job {job_id} has exceeded maximum retry attempts ({job.attempt_count})"
+        )
 
     now = utc_now()
     job.state = "running"
@@ -147,10 +158,29 @@ def _execute_job_pipeline(
         session.commit()
 
         adapter = LyzrAgentAdapter()
-        # Run async adapter in event loop
         analysis_result = asyncio.run(adapter.analyze_conversation(agent_payload))
 
-        # 7. Record AgentRun with genuine run reference & stages if available
+        # 7. Deduplication Guard: Clean up any pending findings and approval requests
+        # from interrupted previous attempts of this conversation before persisting new ones
+        existing_findings = session.exec(
+            select(Finding).where(Finding.conversation_id == conv.id)
+        ).all()
+        for ef in existing_findings:
+            if ef.status == "pending_approval":
+                existing_approvals = session.exec(
+                    select(ApprovalRequest).where(ApprovalRequest.finding_id == ef.id)
+                ).all()
+                for ea in existing_approvals:
+                    session.delete(ea)
+                existing_ev = session.exec(
+                    select(DecisionEvidence).where(DecisionEvidence.finding_id == ef.id)
+                ).all()
+                for ev in existing_ev:
+                    session.delete(ev)
+                session.delete(ef)
+        session.flush()
+
+        # 8. Record AgentRun with genuine run reference & stages if available
         run_reference = (
             analysis_result.run_reference
             if analysis_result.run_reference
@@ -176,7 +206,7 @@ def _execute_job_pipeline(
         session.add(agent_run)
         session.flush()
 
-        # 8. Record Finding and Evidence links
+        # 9. Record Finding and Evidence links
         now = utc_now()
         finding = Finding(
             user_id=conv.user_id,
@@ -196,7 +226,6 @@ def _execute_job_pipeline(
         session.add(finding)
         session.flush()
 
-        # Link evidence chunks
         for cid in analysis_result.evidence_chunk_ids:
             session.add(
                 DecisionEvidence(
@@ -206,7 +235,7 @@ def _execute_job_pipeline(
                 )
             )
 
-        # 9. Create Approval Request if mutation proposed
+        # 10. Create Approval Request if mutation proposed
         final_state = "completed"
         if analysis_result.requires_human_approval and analysis_result.proposed_action:
             exec_key = f"exec_key_{secrets.token_urlsafe(16)}"

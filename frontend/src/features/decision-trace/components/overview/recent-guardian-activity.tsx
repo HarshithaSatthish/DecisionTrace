@@ -1,3 +1,4 @@
+import { formatSafeTime } from '../../lib/format-date';
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -72,10 +73,7 @@ export function RecentGuardianActivity({ initialActivities }: RecentGuardianActi
                 <div className='flex items-center justify-between gap-2'>
                   <p className='truncate text-xs font-medium text-foreground'>{item.title}</p>
                   <time className='shrink-0 text-[11px] text-muted-foreground tabular-nums'>
-                    {new Date(item.timestamp).toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
+                    {formatSafeTime(item.timestamp, { hour: '2-digit', minute: '2-digit' })}
                   </time>
                 </div>
                 <p className='line-clamp-2 text-[11px] text-muted-foreground leading-relaxed'>

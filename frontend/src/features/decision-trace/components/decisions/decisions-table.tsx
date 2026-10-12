@@ -1,5 +1,7 @@
 'use client';
 
+import { formatSafeDate } from '../../lib/format-date';
+
 import React, { useState, useMemo } from 'react';
 import {
   Table,
@@ -151,7 +153,7 @@ export function DecisionsTable({ initialDecisions, initialCommitments }: Decisio
                         {decision.category}
                       </Badge>
                       <span className='text-[10px] text-muted-foreground tabular-nums'>
-                        {new Date(decision.createdAt).toLocaleDateString()}
+                        {formatSafeDate(decision.createdAt)}
                       </span>
                     </div>
                   </TableCell>
