@@ -39,7 +39,7 @@ class Settings(BaseSettings):
 
     # Lyzr Integration
     LYZR_API_KEY: str | None = None
-    LYZR_BASE_URL: str = "https://agent.api.lyzr.app/v2"
+    LYZR_BASE_URL: str = "https://agent-prod.studio.lyzr.ai/v3"
     LYZR_MANAGER_AGENT_ID: str | None = None
 
     # FastEmbed Cache
