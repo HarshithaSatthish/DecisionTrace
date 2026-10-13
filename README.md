@@ -268,11 +268,11 @@ bun run build
 
 ## 11. Live Deployment Links
 
-- **Frontend Application (Vercel):** [https://decisiontrace.vercel.app](https://decisiontrace.vercel.app)
-- **Backend API (Railway):** [https://decisiontrace-api.up.railway.app](https://decisiontrace-api.up.railway.app)
-- **Backend Health Check:** [https://decisiontrace-api.up.railway.app/health](https://decisiontrace-api.up.railway.app/health)
-- **Backend Readiness Probe:** [https://decisiontrace-api.up.railway.app/ready](https://decisiontrace-api.up.railway.app/ready)
-- **Interactive OpenAPI Documentation:** [https://decisiontrace-api.up.railway.app/docs](https://decisiontrace-api.up.railway.app/docs)
+- **Frontend Application (Vercel):** [https://decisiontrace-harshithas-projects-270046d5.vercel.app](https://decisiontrace-harshithas-projects-270046d5.vercel.app) *(or [https://decisiontrace.vercel.app](https://decisiontrace.vercel.app))*
+- **Backend API (Railway):** [https://decisiontrace-production.up.railway.app](https://decisiontrace-production.up.railway.app)
+- **Backend Health Check:** [https://decisiontrace-production.up.railway.app/health](https://decisiontrace-production.up.railway.app/health)
+- **Backend Readiness Probe:** [https://decisiontrace-production.up.railway.app/ready](https://decisiontrace-production.up.railway.app/ready)
+- **Interactive OpenAPI Documentation:** [https://decisiontrace-production.up.railway.app/docs](https://decisiontrace-production.up.railway.app/docs)
 
 ---
 
