@@ -216,3 +216,63 @@ async def test_dev_bypass_fails_when_auth_dev_mode_false(monkeypatch):
     with pytest.raises(HTTPException) as exc_info:
         await verify_clerk_token(creds)
     assert exc_info.value.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_trailing_slash_issuer_compatibility(rsa_keypair, monkeypatch):
+    """Verify issuer with or without trailing slash matches cleanly."""
+    kid = rsa_keypair["kid"]
+    monkeypatch.setattr(settings, "AUTH_DEV_MODE", False)
+    monkeypatch.setattr(settings, "CLERK_ISSUER", "https://clerk.decisiontrace.com")
+
+    _jwks_cache["keys"] = {kid: rsa_keypair["jwk"]}
+    _jwks_cache["expires_at"] = datetime.now(timezone.utc).timestamp() + 3600
+
+    now = datetime.now(timezone.utc)
+    token_claims = {
+        "sub": "user_slash_test",
+        "iss": "https://clerk.decisiontrace.com/",  # Token has trailing slash
+        "exp": int((now + timedelta(minutes=15)).timestamp()),
+    }
+
+    signed_jwt = jwt.encode(
+        token_claims,
+        rsa_keypair["private_pem"],
+        algorithm="RS256",
+        headers={"kid": kid},
+    )
+
+    creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials=signed_jwt)
+    verified = await verify_clerk_token(creds)
+    assert verified["sub"] == "user_slash_test"
+
+
+@pytest.mark.asyncio
+async def test_missing_sub_claim_rejected(rsa_keypair, monkeypatch):
+    """Verify token missing sub claim raises 401."""
+    kid = rsa_keypair["kid"]
+    monkeypatch.setattr(settings, "AUTH_DEV_MODE", False)
+    monkeypatch.setattr(settings, "CLERK_ISSUER", "https://clerk.decisiontrace.com")
+
+    _jwks_cache["keys"] = {kid: rsa_keypair["jwk"]}
+    _jwks_cache["expires_at"] = datetime.now(timezone.utc).timestamp() + 3600
+
+    now = datetime.now(timezone.utc)
+    token_claims = {
+        "iss": "https://clerk.decisiontrace.com",
+        "exp": int((now + timedelta(minutes=15)).timestamp()),
+    }
+
+    signed_jwt = jwt.encode(
+        token_claims,
+        rsa_keypair["private_pem"],
+        algorithm="RS256",
+        headers={"kid": kid},
+    )
+
+    creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials=signed_jwt)
+    with pytest.raises(HTTPException) as exc_info:
+        await verify_clerk_token(creds)
+    assert exc_info.value.status_code == 401
+    assert "missing user subject" in exc_info.value.detail.lower()
+

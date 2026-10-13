@@ -42,6 +42,7 @@ def enqueue_conversation_job(conversation_id_str: str, job_id_str: str):
     try:
         q = get_queue()
         from rq.job import Job
+
         from app.workers.jobs import process_conversation_job
 
         # Deduplication check: if job is already queued or active in RQ, return existing job without creating duplicate

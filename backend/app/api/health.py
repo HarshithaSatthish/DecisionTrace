@@ -25,7 +25,7 @@ def get_health() -> dict[str, Any]:
 @router.get("/ready")
 def get_readiness(response: Response) -> dict[str, Any]:
     """Dependency readiness probe (Database, Redis, Qdrant).
-    
+
     In production (APP_ENV=production), PostgreSQL, Redis, and Qdrant are required.
     Any required dependency failure returns HTTP 503 Service Unavailable.
     """

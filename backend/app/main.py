@@ -56,10 +56,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Unauthenticated Health probes
+# Unauthenticated Health probes (accessible at /health, /ready, /api/v1/health, /api/v1/ready)
 app.include_router(health.router)
+app.include_router(health.router, prefix=settings.API_V1_STR)
 
-# Versioned API Routers
+# Versioned API Routers (Canonical /api/v1/...)
 app.include_router(omi_webhook.router, prefix=settings.API_V1_STR)
 app.include_router(integrations.router, prefix=settings.API_V1_STR)
 app.include_router(conversations.router, prefix=settings.API_V1_STR)
@@ -67,6 +68,14 @@ app.include_router(decisions.router, prefix=settings.API_V1_STR)
 app.include_router(findings.router, prefix=settings.API_V1_STR)
 app.include_router(approvals.router, prefix=settings.API_V1_STR)
 app.include_router(activity.router, prefix=settings.API_V1_STR)
+
+# Root-level aliases for deployment URL flexibility
+app.include_router(integrations.router)
+app.include_router(conversations.router)
+app.include_router(decisions.router)
+app.include_router(findings.router)
+app.include_router(approvals.router)
+app.include_router(activity.router)
 
 
 @app.get("/")

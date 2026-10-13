@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 def reconcile_pending_jobs(batch_size: int = 50, db_session: Session | None = None) -> int:
     """Find orphan or interrupted jobs and re-enqueue them safely without duplicates.
-    
+
     Recovers:
     1. Orphaned jobs (received, queued, retrying) never queued or queued > 5 min ago with attempt_count < 3.
     2. Interrupted jobs (running) whose worker crashed or was killed (started > 5 min ago) with attempt_count < 3.
@@ -55,7 +55,8 @@ def reconcile_pending_jobs(batch_size: int = 50, db_session: Session | None = No
                 reconciled_count += 1
             else:
                 logger.warning(
-                    f"Redis enqueue failed during reconcile for job {job.id}; keeping state='{job.state}' without refreshing queued_at"
+                    f"Redis enqueue failed during reconcile for job {job.id}; "
+                    f"keeping state='{job.state}' without refreshing queued_at"
                 )
 
         session.commit()

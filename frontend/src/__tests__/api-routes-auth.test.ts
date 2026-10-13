@@ -183,10 +183,34 @@ describe('Server-Side Clerk Authentication Enforcement on API Routes', () => {
     mockSessionUser = 'usr_authorized';
     const origKey = process.env.LYZR_API_KEY;
     const origMgr = process.env.LYZR_MANAGER_AGENT_ID;
+    const origFetch = globalThis.fetch;
 
     try {
       process.env.LYZR_API_KEY = 'mock_lyzr_key';
       process.env.LYZR_MANAGER_AGENT_ID = 'mock_agent_id';
+      globalThis.fetch = mock(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              response: JSON.stringify({
+                decisions: [
+                  {
+                    whatWasDecided: 'Test live decision',
+                    speaker: 'Alice',
+                    evidenceQuote: 'Alice: We decided to test live header.',
+                    confidenceScore: 90
+                  }
+                ],
+                commitments: [],
+                followUpTasks: [],
+                participants: ['Alice'],
+                rawSummary: 'Live test summary'
+              })
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }
+          )
+        )
+      ) as unknown as typeof fetch;
 
       const req = new NextRequest('http://localhost:3000/api/decision-trace/analyze', {
         method: 'POST',
@@ -197,6 +221,7 @@ describe('Server-Side Clerk Authentication Enforcement on API Routes', () => {
       const res = await analyzeRoute(req);
       expect(res.headers.get('X-DecisionTrace-Lyzr-Engine')).toBe('live-lyzr-studio');
     } finally {
+      globalThis.fetch = origFetch;
       if (origKey) process.env.LYZR_API_KEY = origKey;
       else delete process.env.LYZR_API_KEY;
       if (origMgr) process.env.LYZR_MANAGER_AGENT_ID = origMgr;

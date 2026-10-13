@@ -27,10 +27,10 @@ def hash_webhook_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
-async def get_clerk_jwks() -> dict[str, Any]:
-    """Fetch and cache JWKS from Clerk."""
+async def get_clerk_jwks(force_refresh: bool = False) -> dict[str, Any]:
+    """Fetch and cache JWKS from Clerk, supporting forced refresh on cache misses."""
     now = time.time()
-    if _jwks_cache["keys"] and _jwks_cache["expires_at"] > now:
+    if not force_refresh and _jwks_cache["keys"] and _jwks_cache["expires_at"] > now:
         return _jwks_cache["keys"]
 
     jwks_url = settings.CLERK_JWKS_URL
@@ -88,6 +88,10 @@ async def verify_clerk_token(
     kid = unverified_header.get("kid")
     jwks = await get_clerk_jwks()
 
+    if not (jwks and kid in jwks):
+        # Force refresh once in case key rotated or cache was empty
+        jwks = await get_clerk_jwks(force_refresh=True)
+
     if jwks and kid in jwks:
         jwk = jwks[kid]
         public_key = jwt.algorithms.RSAAlgorithm.from_jwk(jwk)
@@ -110,7 +114,8 @@ async def verify_clerk_token(
         "options": {"verify_aud": bool(settings.CLERK_AUDIENCE)},
     }
     if settings.CLERK_ISSUER:
-        decode_kwargs["issuer"] = settings.CLERK_ISSUER
+        iss = settings.CLERK_ISSUER.rstrip("/")
+        decode_kwargs["issuer"] = [iss, f"{iss}/"]
     if settings.CLERK_AUDIENCE:
         decode_kwargs["audience"] = settings.CLERK_AUDIENCE
 
@@ -132,6 +137,13 @@ async def verify_clerk_token(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Invalid session token: {e!s}",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if not payload.get("sub"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session token missing user subject (sub) claim",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
