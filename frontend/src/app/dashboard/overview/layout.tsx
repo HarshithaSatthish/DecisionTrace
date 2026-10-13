@@ -18,7 +18,7 @@ import {
 import { Icons } from '@/components/icons';
 import React from 'react';
 import Link from 'next/link';
-import { getDashboardMetrics } from '@/features/decision-trace/api/service';
+import { getDashboardMetrics, EMPTY_METRICS } from '@/features/decision-trace/api/service';
 import { AttentionItemsBanner } from '@/features/decision-trace/components/overview/attention-items-banner';
 import { DevelopmentPreviewBanner } from '@/features/decision-trace/components/development-preview-banner';
 
@@ -33,12 +33,28 @@ export default async function OverViewLayout({
   bar_stats: React.ReactNode;
   area_stats: React.ReactNode;
 }) {
-  const metrics = await getDashboardMetrics();
+  let metrics = EMPTY_METRICS;
+  let backendOfflineError: string | null = null;
+  try {
+    metrics = await getDashboardMetrics();
+  } catch (err: unknown) {
+    backendOfflineError = err instanceof Error ? err.message : 'Backend service unreachable';
+  }
 
   return (
     <PageContainer>
       <div className='flex flex-1 flex-col gap-4'>
         <DevelopmentPreviewBanner />
+
+        {backendOfflineError && (
+          <div className='rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300 flex items-center justify-between'>
+            <div className='flex items-center gap-2'>
+              <Icons.warning className='size-4 text-amber-600 shrink-0' />
+              <span>Backend Service Connecting / Offline — Displaying session state.</span>
+            </div>
+            <span className='font-mono text-[11px] opacity-80 truncate max-w-[50%]'>{backendOfflineError}</span>
+          </div>
+        )}
 
         {/* Header Header & Guardian Status */}
         <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/40 pb-3'>

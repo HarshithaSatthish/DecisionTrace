@@ -80,8 +80,8 @@ class LyzrAgentAdapter:
             '  "new_value": string | null,\n'
             '  "evidence_chunk_ids": string[],\n'
             '  "explanation": string,\n'
-            '  "confidence": "high" | "medium" | "low",\n'
-            '  "proposed_action": {"kind": "create_decision"|"request_decision_update"|"request_clarification", "target_decision_id": null, "new_value": string, "topic": string} | null,\n'
+            '  "proposed_action": {"kind": "create_decision"|"request_decision_update"|'
+            '"request_clarification", "target_decision_id": null, "new_value": string, "topic": string} | null,\n'
             '  "requires_human_approval": true | false\n'
             "}\n"
             "4. Evidence IDs MUST strictly belong to new_evidence_ids or historical_evidence."

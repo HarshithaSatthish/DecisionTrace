@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, col, func, select
 
 from app.core.security import verify_clerk_token
-from app.db.models import Decision, DecisionEvidence
+from app.db.models import Decision
 from app.db.repository import get_or_create_user
 from app.db.session import get_session
 from app.schemas.decision import DecisionDetailRead, DecisionListResponse, DecisionRead

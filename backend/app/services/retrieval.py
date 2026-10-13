@@ -27,7 +27,7 @@ def retrieve_prior_evidence(
     client: QdrantClient | None = None,
 ) -> list[HistoricalEvidenceInput]:
     """Search prior evidence chunks in Qdrant scoped to user_id, excluding current conversation.
-    
+
     Distinguishes genuine empty retrieval results (0 hits) from Qdrant outages and query errors.
     Propagates retryable RetrievalError when Qdrant fails, never pretending retrieval succeeded.
     """
