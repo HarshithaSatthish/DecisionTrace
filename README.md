@@ -219,7 +219,7 @@ bun run dev
 | `EMBEDDING_MODEL` | FastEmbed dense model name | `BAAI/bge-small-en-v1.5` |
 | `CLERK_ISSUER` | Clerk authentication domain | `https://your-domain.clerk.accounts.dev` |
 | `CLERK_JWKS_URL` | Clerk JWKS public keys URL | `https://your-domain.clerk.accounts.dev/.well-known/jwks.json` |
-| `CLERK_AUTHORIZED_PARTIES` | Allowed client origins | `http://localhost:3000,https://decisiontrace.vercel.app` |
+| `CLERK_AUTHORIZED_PARTIES` | Allowed client origins | `http://localhost:3000,https://decisiontrace-orcin.vercel.app` |
 | `LYZR_API_KEY` | Lyzr Studio API Key | `your_lyzr_api_key` |
 | `LYZR_MANAGER_AGENT_ID` | Lyzr Manager Agent ID | `your_lyzr_agent_id` |
 
@@ -268,7 +268,7 @@ bun run build
 
 ## 11. Live Deployment Links
 
-- **Frontend Application (Vercel):** [https://decisiontrace-harshithas-projects-270046d5.vercel.app](https://decisiontrace-harshithas-projects-270046d5.vercel.app) *(or [https://decisiontrace.vercel.app](https://decisiontrace.vercel.app))*
+- **Frontend Application (Vercel):** [https://decisiontrace-orcin.vercel.app](https://decisiontrace-orcin.vercel.app)
 - **Backend API (Railway):** [https://decisiontrace-production.up.railway.app](https://decisiontrace-production.up.railway.app)
 - **Backend Health Check:** [https://decisiontrace-production.up.railway.app/health](https://decisiontrace-production.up.railway.app/health)
 - **Backend Readiness Probe:** [https://decisiontrace-production.up.railway.app/ready](https://decisiontrace-production.up.railway.app/ready)
@@ -292,5 +292,5 @@ bun run build
 ## 13. Known Limitations & Operational Notes
 
 1. **Remote Lyzr Fallback in Development**: When running locally without live `LYZR_API_KEY` credentials, the backend and frontend run high-fidelity deterministic contract analyzers that preserve all schema contracts and anti-hallucination guards.
-2. **Local Qdrant Fallback**: In local development without a running Qdrant daemon, the memory service automatically operates an in-memory vector collection for zero-friction setup.
+2. **Qdrant Vector DB Infrastructure Note**: The Railway deployment operates with database and Redis connected. Persistent remote Qdrant Cloud cluster credentials are not configured on Railway due to account resource limits, so the production readiness probe reports Qdrant status accurately. In local test suites and memory fallbacks, an in-memory vector collection is operated for automated contract verification.
 3. **Audio Streaming**: Omi captures ambient audio into structured memory events; raw chunk streaming requires wearable Bluetooth pairing through the Omi mobile application.
