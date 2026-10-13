@@ -225,7 +225,7 @@ Lisa: That might be interesting if anyone ever has spare cycles down the road.
   const t6Start = Date.now();
   const res6 = await orchestrateDecisionTraceAnalysis({
     conversationText: transcript1,
-    sourceTitle: 'Core Architecture Review Q2 (Repeat Request)',
+    sourceTitle: 'Core Architecture Review Q2',
     channel: 'Google Meet'
   });
   const t6Duration = Date.now() - t6Start;

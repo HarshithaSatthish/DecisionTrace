@@ -1,5 +1,5 @@
 {
-  "executedAt": "2026-10-11T18:31:40.142Z",
+  "executedAt": "2026-10-13T16:36:10.733Z",
   "environment": "production-live-lyzr",
   "agentIdsConfigured": {
     "extractor": true,
@@ -16,11 +16,11 @@
       "id": 1,
       "name": "Meeting Transcript Extraction",
       "passed": true,
-      "durationMs": 21646,
+      "durationMs": 28446,
       "details": {
         "decisionsCount": 1,
         "commitmentsCount": 2,
-        "firstDecision": "Standardization on PostgreSQL",
+        "firstDecision": "Standardize PostgreSQL for Primary Storage",
         "firstEvidenceQuote": "We decided to standardize on PostgreSQL for primary storage across all microservices.",
         "firstCommitmentOwner": "Sarah",
         "firstCommitmentDeadline": "2026-05-15"
@@ -30,14 +30,14 @@
       "id": 2,
       "name": "Contradiction Detection",
       "passed": true,
-      "durationMs": 21892,
+      "durationMs": 22851,
       "details": {
         "conflictsCount": 1,
-        "conflictTitle": "Conflicting Database Choices for Microservices",
-        "severity": "high",
-        "explanation": "The new decision to migrate all microservices to MongoDB directly contradicts the historical decision to standardize on PostgreSQL for primary storage across all microservices.",
-        "priorDecisionTitle": "Standardization on PostgreSQL",
-        "newerDecisionTitle": "Migration of Microservices"
+        "conflictTitle": "Migration Strategy Conflict",
+        "severity": "critical",
+        "explanation": "The new decision to migrate all microservices to MongoDB directly contradicts the previous decision to standardize on PostgreSQL for primary storage across all microservices.",
+        "priorDecisionTitle": "Standardize PostgreSQL for Primary Storage",
+        "newerDecisionTitle": "Migration to MongoDB"
       }
     },
     {
@@ -47,16 +47,16 @@
       "durationMs": 0,
       "details": {
         "approvalsCount": 1,
-        "firstApprovalTitle": "Resolve Database Conflict",
-        "exactActionPreview": "Override the existing conflict regarding database choices and confirm migration to MongoDB.",
-        "impactLevel": "high"
+        "firstApprovalTitle": "Resolve Migration Strategy Conflict",
+        "exactActionPreview": "Resolve conflict between MongoDB and PostgreSQL migration decisions.",
+        "impactLevel": "critical"
       }
     },
     {
       "id": 4,
       "name": "Hallucination & Ambiguity Guard",
       "passed": true,
-      "durationMs": 3248,
+      "durationMs": 4362,
       "details": {
         "decisionsCount": 0,
         "commitmentsCount": 0,
@@ -67,22 +67,22 @@
       "id": 5,
       "name": "Empty Input Early Exit",
       "passed": true,
-      "durationMs": 0,
+      "durationMs": 1,
       "details": {
         "decisionsCount": 0,
         "commitmentsCount": 0,
-        "durationMs": 0
+        "durationMs": 1
       }
     },
     {
       "id": 6,
       "name": "Duplicate Input Cache Hit",
       "passed": true,
-      "durationMs": 16636,
+      "durationMs": 0,
       "details": {
-        "firstRunDurationMs": 21646,
-        "cachedRunDurationMs": 16636,
-        "speedup": "1.3x faster",
+        "firstRunDurationMs": 28446,
+        "cachedRunDurationMs": 0,
+        "speedup": "28446x faster",
         "decisionsCount": 1
       }
     }
