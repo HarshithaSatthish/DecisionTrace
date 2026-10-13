@@ -148,6 +148,7 @@ class ApprovalService:
                         detail="Referenced target decision not found",
                     )
                 # Verify target decision belongs to authenticated user
+                if target_dec.user_id != user_id:
                     logger.warning(
                         f"Cross-user authorization violation: user {user_id} attempted "
                         f"to mutate decision {target_dec.id} of user {target_dec.user_id}"
