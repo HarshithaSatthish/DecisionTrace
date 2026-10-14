@@ -93,7 +93,7 @@ export function DecisionTrendsChart({ data }: DecisionTrendsChartProps = {}) {
                 tickMargin={8}
                 fontSize={12}
               />
-              <YAxis tickLine={false} axisLine={false} fontSize={12} />
+              <YAxis tickLine={false} axisLine={false} fontSize={12} allowDecimals={false} />
               <ChartTooltip content={<ChartTooltipContent />} />
               <Area
                 dataKey='commitments'

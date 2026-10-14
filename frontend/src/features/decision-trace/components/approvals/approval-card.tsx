@@ -41,12 +41,12 @@ export function ApprovalCard({ approval, onActionComplete }: ApprovalCardProps) 
 
       // Only update if backend confirmed success
       if (result.success) {
-        setCurrentStatus(
-          action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : 'clarified'
-        );
+        const newStatus =
+          action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : 'clarified';
+        setCurrentStatus(newStatus);
         router.refresh();
         toast.success(`Approval confirmed by backend consensus engine`);
-        onActionComplete?.(approval.id, action);
+        onActionComplete?.(approval.id, newStatus);
       }
     } catch (err: unknown) {
       const message =

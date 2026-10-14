@@ -1,3 +1,4 @@
+import { mapAuditActionToActivityType } from '@/lib/activity-mapping';
 import {
   Decision,
   Commitment,
@@ -442,14 +443,7 @@ export function transformBackendActivity(items: unknown[]): ActivityItem[] {
     if (a.title && a.description && a.type) {
       return a as ActivityItem;
     }
-    let actType: ActivityType = 'conversation_processed';
-    if (a.action?.includes('decision')) actType = 'decision_extracted';
-    else if (a.action?.includes('conflict') || a.action?.includes('finding'))
-      actType = 'conflict_detected';
-    else if (a.action?.includes('approve') || a.action?.includes('executed'))
-      actType = 'approval_executed';
-    else if (a.action?.includes('request')) actType = 'approval_requested';
-    else if (a.action?.includes('update')) actType = 'commitment_updated';
+    const actType: ActivityType = mapAuditActionToActivityType(a.action, a.entity_type);
 
     const actionLabel = (a.action || 'event').replace(/_/g, ' ');
     return {
