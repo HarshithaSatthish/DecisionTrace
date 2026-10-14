@@ -6,6 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
+from app.schemas.finding import EvidenceItem
+
 
 class DecisionRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -19,6 +21,7 @@ class DecisionRead(BaseModel):
     version: int
     updated_at: datetime
     created_at: datetime
+    source_evidence: list[EvidenceItem] = []
 
 
 class DecisionDetailRead(DecisionRead):

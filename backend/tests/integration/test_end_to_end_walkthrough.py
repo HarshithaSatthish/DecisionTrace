@@ -83,6 +83,8 @@ def test_complete_end_to_end_walkthrough(
     dec_a_data = resp_approve_a.json()["resulting_decision"]
     assert dec_a_data["topic"] == "prototype_review"
     assert dec_a_data["version"] == 1
+    registry = client.get("/api/v1/decisions", headers=headers).json()
+    assert "Friday at 10 AM" in registry["items"][0]["source_evidence"][0]["excerpt"]
 
     # =========================================================================
     # STEP 2: Spoken Event B arrives from Omi Webhook later

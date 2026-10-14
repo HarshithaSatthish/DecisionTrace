@@ -95,6 +95,13 @@ def get_dashboard_overview(
     ).one()
 
     recent_findings = session.exec(select(func.count(Finding.id)).where(Finding.user_id == user.id)).one()
+    legacy_conditions = [
+        Decision.user_id == user.id,
+        Decision.state == "active",
+        Decision.id.notin_(select(Task.decision_id).where(Task.decision_id.is_not(None))),
+    ]
+    legacy_open = session.exec(select(func.count(Decision.id)).where(*legacy_conditions)).one()
+    legacy_overdue = session.exec(select(func.count(Decision.id)).where(*legacy_conditions, Decision.due_date < utc_now())).one()
 
     return OverviewResponse(
         total_conversations=total_convs,
@@ -104,12 +111,14 @@ def get_dashboard_overview(
         system_status="healthy",
         open_commitments=session.exec(
             select(func.count(Task.id)).where(Task.user_id == user.id, Task.status.notin_(["completed", "cancelled"]))
-        ).one(),
+        ).one()
+        + legacy_open,
         overdue_commitments=session.exec(
             select(func.count(Task.id)).where(
                 Task.user_id == user.id, Task.status.notin_(["completed", "cancelled"]), Task.due_date < utc_now()
             )
-        ).one(),
+        ).one()
+        + legacy_overdue,
         detected_conflicts=session.exec(
             select(func.count(Finding.id)).where(
                 Finding.user_id == user.id,
