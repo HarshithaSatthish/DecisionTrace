@@ -1,5 +1,7 @@
 'use client';
 
+import { formatSafeDate, formatSafeTime } from '../../lib/format-date';
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -64,7 +66,7 @@ export function ConflictCard({ conflict, onResolved }: ConflictCardProps) {
             </Badge>
           </div>
           <time className='text-xs text-muted-foreground tabular-nums'>
-            Detected on {new Date(conflict.detectedAt).toLocaleDateString()} at{' '}
+            Detected on {formatSafeDate(conflict.detectedAt)} at{' '}
             {new Date(conflict.detectedAt).toLocaleTimeString([], {
               hour: '2-digit',
               minute: '2-digit'
@@ -98,7 +100,7 @@ export function ConflictCard({ conflict, onResolved }: ConflictCardProps) {
                   Earlier Decision #{conflict.previousDecision.id}
                 </Badge>
                 <time className='text-[11px] text-muted-foreground tabular-nums'>
-                  {new Date(conflict.previousDecision.timestamp).toLocaleDateString()}
+                  {formatSafeDate(conflict.previousDecision.timestamp)}
                 </time>
               </div>
 
@@ -140,7 +142,7 @@ export function ConflictCard({ conflict, onResolved }: ConflictCardProps) {
                   Newer Contradictory Decision #{conflict.newerDecision.id}
                 </Badge>
                 <time className='text-[11px] text-muted-foreground tabular-nums'>
-                  {new Date(conflict.newerDecision.timestamp).toLocaleDateString()}
+                  {formatSafeDate(conflict.newerDecision.timestamp)}
                 </time>
               </div>
 

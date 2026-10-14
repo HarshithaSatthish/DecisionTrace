@@ -8,11 +8,11 @@ export default function CtaGithub() {
       size='sm'
       className='group hidden sm:flex'
       nativeButton={false}
-      aria-label='View on GitHub'
+      aria-label='View DecisionTrace on GitHub'
       render={
         <a
-          aria-label='View on GitHub'
-          href='https://github.com/Kiranism/next-shadcn-dashboard-starter'
+          aria-label='View DecisionTrace on GitHub'
+          href='https://github.com/HarshithaSatthish/DecisionTrace'
           rel='noopener noreferrer'
           target='_blank'
           className='text-muted-foreground hover:text-foreground transition-colors duration-300'

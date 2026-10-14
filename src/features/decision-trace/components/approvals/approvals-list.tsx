@@ -12,7 +12,7 @@ interface ApprovalsListProps {
 }
 
 export function ApprovalsList({ initialApprovals }: ApprovalsListProps) {
-  const approvals = initialApprovals;
+  const [approvals] = useState<ApprovalRequest[]>(initialApprovals);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 

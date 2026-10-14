@@ -95,7 +95,8 @@ export function CommitmentStatusBadge({ status }: { status: CommitmentStatus }) 
   }
 }
 
-export function PriorityBadge({ priority }: { priority: CommitmentPriority }) {
+export function PriorityBadge({ priority }: { priority?: CommitmentPriority | null }) {
+  if (!priority) return null;
   switch (priority) {
     case 'critical':
       return (

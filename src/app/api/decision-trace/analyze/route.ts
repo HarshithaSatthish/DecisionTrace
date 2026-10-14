@@ -38,8 +38,8 @@ const decisionInput = z.object({
       })
     )
     .max(20),
-  confidence: z.number().min(0).max(100),
-  confidenceLevel: z.enum(['high', 'medium', 'low']),
+  confidence: z.number().min(0).max(100).optional(),
+  confidenceLevel: z.enum(['high', 'medium', 'low']).optional(),
   relatedCommitmentIds: z.array(shortText).max(100),
   category: shortText,
   impactLevel: z.enum(['low', 'medium', 'high', 'critical'])

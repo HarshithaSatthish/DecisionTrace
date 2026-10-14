@@ -22,11 +22,12 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
-  SidebarRail
+  SidebarRail,
+  useSidebar
 } from '@/components/ui/sidebar';
 import { UserAvatarProfile } from '@/components/user-avatar-profile';
 import { navGroups } from '@/config/nav-config';
-import { useMediaQuery } from '@/hooks/use-media-query';
+
 import { useClerk, useOrganization, useUser } from '@clerk/nextjs';
 import { useFilteredNavGroups } from '@/hooks/use-nav';
 import Link from 'next/link';
@@ -37,16 +38,19 @@ import { OrgSwitcher } from '../org-switcher';
 
 export default function AppSidebar() {
   const pathname = usePathname();
-  const { isOpen } = useMediaQuery();
+
+  const { isMobile, setOpenMobile } = useSidebar();
   const { user } = useUser();
   const { organization } = useOrganization();
   const { signOut } = useClerk();
   const router = useRouter();
   const filteredGroups = useFilteredNavGroups(navGroups);
 
-  React.useEffect(() => {
-    // Side effects based on sidebar state changes
-  }, [isOpen]);
+  const handleLinkClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
 
   return (
     <Sidebar collapsible='icon'>
@@ -84,7 +88,13 @@ export default function AppSidebar() {
                         {item.items?.map((subItem) => (
                           <SidebarMenuSubItem key={subItem.title}>
                             <SidebarMenuSubButton
-                              render={<Link href={subItem.url} aria-label={subItem.title} />}
+                              render={
+                                <Link
+                                  href={subItem.url}
+                                  aria-label={subItem.title}
+                                  onClick={handleLinkClick}
+                                />
+                              }
                               isActive={pathname === subItem.url}
                             >
                               <span>{subItem.title}</span>
@@ -97,7 +107,9 @@ export default function AppSidebar() {
                 ) : (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
-                      render={<Link href={item.url} aria-label={item.title} />}
+                      render={
+                        <Link href={item.url} aria-label={item.title} onClick={handleLinkClick} />
+                      }
                       tooltip={item.title}
                       isActive={pathname === item.url}
                     >
@@ -144,17 +156,32 @@ export default function AppSidebar() {
                 <DropdownMenuSeparator />
 
                 <DropdownMenuGroup>
-                  <DropdownMenuItem onClick={() => router.push('/dashboard/profile')}>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      handleLinkClick();
+                      router.push('/dashboard/profile');
+                    }}
+                  >
                     <Icons.account className='mr-2 h-4 w-4' />
                     Profile
                   </DropdownMenuItem>
                   {organization && (
-                    <DropdownMenuItem onClick={() => router.push('/dashboard/billing')}>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        handleLinkClick();
+                        router.push('/dashboard/billing');
+                      }}
+                    >
                       <Icons.creditCard className='mr-2 h-4 w-4' />
                       Billing
                     </DropdownMenuItem>
                   )}
-                  <DropdownMenuItem onClick={() => router.push('/dashboard/notifications')}>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      handleLinkClick();
+                      router.push('/dashboard/notifications');
+                    }}
+                  >
                     <Icons.notification className='mr-2 h-4 w-4' />
                     Notifications
                   </DropdownMenuItem>

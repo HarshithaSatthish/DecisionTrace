@@ -8,7 +8,11 @@ import { useAppForm } from '@/lib/form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { getIntegrationHealth, getOmiConnection, connectOmi } from '../api/service';
+import {
+  getIntegrationHealth,
+  getOmiIntegrationStatus as getOmiConnection,
+  linkOmiIntegration as connectOmi
+} from '../api/service';
 
 export function IntegrationHealth() {
   const { userId } = useAuth();
@@ -22,13 +26,13 @@ export function IntegrationHealth() {
   });
   const omi = useQuery({
     queryKey: ['decision-trace', 'omi', userId],
-    queryFn: getOmiConnection,
+    queryFn: () => getOmiConnection(),
     enabled: !!userId
   });
   const connect = useMutation({
     mutationFn: connectOmi,
     onSuccess: async (result) => {
-      setWebhookUrl(result.webhook_url);
+      setWebhookUrl(result.webhookUrl);
       setCopied(false);
       await queryClient.invalidateQueries({ queryKey: ['decision-trace', 'omi', userId] });
     }

@@ -17,36 +17,32 @@ const META_THEME_COLORS = {
 };
 
 export const metadata: Metadata = {
-  ...(process.env.NEXT_PUBLIC_APP_URL
-    ? { metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL) }
-    : {}),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://decisiontrace.app'),
   title: {
     default: 'DecisionTrace — Autonomous Decision & Commitment Guardian',
     template: '%s | DecisionTrace'
   },
   description:
     'Autonomous Decision & Commitment Guardian — Track decisions, monitor commitments, detect conflicts and govern automated approvals.',
+  icons: {
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: 'any' }
+    ],
+    apple: '/favicon.svg'
+  },
   openGraph: {
-    title: 'Shadcn Dashboard - Next.js Admin Dashboard Template',
+    title: 'DecisionTrace — Autonomous Decision & Commitment Guardian',
     description:
-      'Free, open source admin dashboard starter built with Next.js 16, shadcn/ui, Tailwind CSS, and TypeScript.',
-    siteName: 'Shadcn Dashboard',
-    type: 'website',
-    images: [
-      {
-        url: '/shadcn-dashboard.png',
-        width: 3200,
-        height: 1600,
-        alt: 'Shadcn Dashboard overview page'
-      }
-    ]
+      'Autonomous Decision & Commitment Guardian — Track decisions, monitor commitments, detect conflicts and govern automated approvals.',
+    siteName: 'DecisionTrace',
+    type: 'website'
   },
   twitter: {
-    card: 'summary_large_image',
-    title: 'Shadcn Dashboard - Next.js Admin Dashboard Template',
+    card: 'summary',
+    title: 'DecisionTrace — Autonomous Decision & Commitment Guardian',
     description:
-      'Free, open source admin dashboard starter built with Next.js 16, shadcn/ui, Tailwind CSS, and TypeScript.',
-    images: ['/shadcn-dashboard.png']
+      'Autonomous Decision & Commitment Guardian — Track decisions, monitor commitments, detect conflicts and govern automated approvals.'
   }
 };
 

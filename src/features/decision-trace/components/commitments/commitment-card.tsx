@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Icons } from '@/components/icons';
 import { Commitment } from '../../types';
 import { PriorityBadge } from '../status-badges';
+import { formatSafeDate } from '../../lib/format-date';
 import { cn } from '@/lib/utils';
 
 interface CommitmentCardProps extends Omit<
@@ -45,7 +46,7 @@ export function CommitmentCard({ commitment, onSelect, ...props }: CommitmentCar
           <span className='line-clamp-2 text-xs font-semibold text-foreground group-hover:text-indigo-600 transition-colors'>
             {commitment.title}
           </span>
-          <PriorityBadge priority={commitment.priority} />
+          {commitment.priority ? <PriorityBadge priority={commitment.priority} /> : null}
           {commitment.overdue ? <Badge variant='destructive'>Overdue</Badge> : null}
           {commitment.needsFollowUp ? <Badge variant='outline'>Needs follow-up</Badge> : null}
         </div>
@@ -73,9 +74,9 @@ export function CommitmentCard({ commitment, onSelect, ...props }: CommitmentCar
         <div className='text-muted-foreground flex items-center justify-between text-xs pt-1 border-t border-border/40'>
           <div className='flex items-center gap-1.5'>
             <div className='size-4 rounded-full bg-primary/20 flex items-center justify-center text-[9px] font-semibold text-primary'>
-              {commitment.ownerAvatar || commitment.owner[0]}
+              {commitment.ownerAvatar || (commitment.owner ? commitment.owner[0] : '?')}
             </div>
-            <span className='text-[11px] truncate'>{commitment.owner}</span>
+            <span className='text-[11px] truncate'>{commitment.owner || 'Unassigned'}</span>
           </div>
 
           <div className='flex items-center gap-2'>
@@ -88,7 +89,11 @@ export function CommitmentCard({ commitment, onSelect, ...props }: CommitmentCar
                 {commitment.evidence.length}
               </span>
             )}
-            <time className='text-[10px] tabular-nums font-medium'>{commitment.deadline}</time>
+            <time className='text-[10px] tabular-nums font-medium'>
+              {commitment.deadline
+                ? formatSafeDate(commitment.deadline, undefined, 'No deadline')
+                : 'No deadline'}
+            </time>
           </div>
         </div>
       </div>

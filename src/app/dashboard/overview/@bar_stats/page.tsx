@@ -1,5 +1,5 @@
 import { CommitmentVelocityChart } from '@/features/decision-trace/components/overview/commitment-velocity-chart';
-import { getCommitments } from '@/features/decision-trace/api/server';
+import { getCommitments } from '@/features/decision-trace/api/service';
 
 export default async function BarStats() {
   const commitments = await getCommitments();

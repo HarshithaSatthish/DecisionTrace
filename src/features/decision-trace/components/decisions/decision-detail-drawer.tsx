@@ -1,5 +1,7 @@
 'use client';
 
+import { formatSafeDateTime } from '../../lib/format-date';
+
 import React from 'react';
 import {
   Sheet,
@@ -46,12 +48,18 @@ export function DecisionDetailDrawer({
               {decision.category}
             </Badge>
             <DecisionStatusBadge status={decision.status} />
-            <Badge variant='secondary' className='text-xs font-normal ml-auto'>
-              Confidence:{' '}
-              {decision.confidenceAvailable === false
-                ? 'Not supplied'
-                : `${decision.confidence}% (${decision.confidenceLevel})`}
-            </Badge>
+            {decision.confidence != null ? (
+              <Badge variant='secondary' className='text-xs font-normal ml-auto'>
+                Confidence: {decision.confidence}% ({decision.confidenceLevel || 'scored'})
+              </Badge>
+            ) : (
+              <Badge
+                variant='outline'
+                className='text-xs font-normal ml-auto text-muted-foreground'
+              >
+                Confidence: Unscored
+              </Badge>
+            )}
           </div>
           <SheetTitle className='text-xl font-bold leading-snug text-foreground'>
             {decision.title}
@@ -92,7 +100,7 @@ export function DecisionDetailDrawer({
                   </div>
                   <div className='text-muted-foreground text-[11px]'>
                     Channel: {decision.sourceConversation.channel} &bull;{' '}
-                    {new Date(decision.sourceConversation.timestamp).toLocaleString()}
+                    {formatSafeDateTime(decision.sourceConversation.timestamp)}
                   </div>
                 </div>
               </div>

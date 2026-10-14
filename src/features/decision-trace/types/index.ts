@@ -14,12 +14,6 @@ export interface AgentInsight {
   evidence: { chunk_id: string; excerpt: string }[];
 }
 
-export interface OmiConnection {
-  connected: boolean;
-  external_omi_uid?: string;
-  webhook_url?: string;
-}
-
 export interface IntegrationStatus {
   status: string;
   connected: boolean;
@@ -56,13 +50,12 @@ export interface Decision {
     id: string;
     title: string;
     channel: string;
-    timestamp: string;
+    timestamp?: string;
     url?: string;
   };
   evidence: EvidenceReference[];
-  confidence: number; // 0-100 percentage
-  confidenceLevel: ConfidenceLevel;
-  confidenceAvailable?: boolean;
+  confidence?: number; // 0-100 percentage, optional when unscored
+  confidenceLevel?: ConfidenceLevel;
   relatedCommitmentIds: string[];
   category: string;
   impactLevel: ImpactLevel;
@@ -79,7 +72,7 @@ export interface Commitment {
   ownerAvatar?: string;
   deadline: string;
   status: CommitmentStatus;
-  priority: CommitmentPriority;
+  priority?: CommitmentPriority;
   relatedDecisionId: string;
   relatedDecisionTitle: string;
   evidence: EvidenceReference[];
@@ -234,4 +227,47 @@ export interface ApprovalActionPayload {
 export interface ConflictResolvePayload {
   action: 'resolve' | 'escalate' | 'dismiss';
   rationale: string;
+}
+
+// ============================================================================
+// Omi Conversations & Integration Types
+// ============================================================================
+export type ConversationProcessingStatus = 'pending' | 'processing' | 'processed' | 'failed';
+
+export interface OmiConversation {
+  id: string;
+  sourceEventId?: string;
+  title?: string;
+  overview?: string;
+  transcriptPreview: string;
+  sourceTime: string;
+  createdAt: string;
+  status: ConversationProcessingStatus;
+}
+
+export interface OmiConversationChunk {
+  id: string;
+  excerpt: string;
+  vectorPointId?: string;
+  sourceTime?: string;
+}
+
+export interface OmiConversationDetail extends OmiConversation {
+  normalizedTranscript: string;
+  chunks: OmiConversationChunk[];
+}
+
+export interface OmiIntegrationStatus {
+  connected: boolean;
+  installationId?: string;
+  externalOmiUid?: string;
+  createdAt?: string;
+  webhookUrl?: string;
+}
+
+export interface OmiLinkResult {
+  installationId: string;
+  webhookToken: string;
+  webhookUrl: string;
+  message: string;
 }

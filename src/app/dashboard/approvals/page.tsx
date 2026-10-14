@@ -1,13 +1,13 @@
 import React from 'react';
 import PageContainer from '@/components/layout/page-container';
-import { getApprovals } from '@/features/decision-trace/api/server';
+import { getApprovals } from '@/features/decision-trace/api/service';
 import { ApprovalsList } from '@/features/decision-trace/components/approvals/approvals-list';
 import { DevelopmentPreviewBanner } from '@/features/decision-trace/components/development-preview-banner';
 import { Badge } from '@/components/ui/badge';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Approvals Guardian — DecisionTrace',
+  title: 'Approvals',
   description: 'Human-in-the-loop consensus approvals with execution impact previews'
 };
 
@@ -16,7 +16,7 @@ export default async function ApprovalsPage() {
 
   return (
     <PageContainer>
-      <div className='flex flex-1 flex-col gap-4'>
+      <div className='flex flex-1 flex-col gap-4 min-w-0 max-w-full'>
         <DevelopmentPreviewBanner />
 
         <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/40 pb-3'>

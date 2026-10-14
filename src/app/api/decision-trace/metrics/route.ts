@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { FIXTURE_METRICS } from '@/features/decision-trace/data/fixtures';
 import { verifyDecisionTraceAuth, isDevPreviewEnabled } from '@/lib/decision-trace-auth';
+import { transformBackendOverview } from '@/features/decision-trace/api/transformers';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,68 +14,44 @@ export async function GET() {
   const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
   if (backendUrl) {
     try {
-      // Harshitha's backend uses /overview; also support legacy /metrics
-      let res = await fetch(`${backendUrl}/overview`, {
+      const res = await fetch(`${backendUrl}/overview`, {
         headers: authResult.headers,
-        cache: 'no-store',
-        signal: AbortSignal.timeout(10000)
-      }).catch(() => null);
+        cache: 'no-store'
+      });
 
-      if (!res || !res.ok) {
-        res = await fetch(`${backendUrl}/metrics`, {
-          headers: authResult.headers,
-          cache: 'no-store',
-          signal: AbortSignal.timeout(10000)
-        }).catch(() => null);
-      }
-
-      if (res && res.ok) {
+      if (res.ok) {
         const rawData = await res.json();
-        const activeCount = rawData.active_decisions ?? rawData.activeDecisionsCount ?? 0;
-        const pendingCount = rawData.pending_approvals ?? rawData.pendingApprovalsCount ?? 0;
-        const findingsCount = rawData.detected_conflicts ?? rawData.detectedConflictsCount ?? 0;
-
-        const attentionItems = rawData.attentionItems ?? [];
-        if (attentionItems.length === 0) {
-          if (pendingCount > 0) {
-            attentionItems.push({
-              id: 'attn-approvals',
-              type: 'approval',
-              title: `${pendingCount} decision proposal(s) require human consensus`,
-              severity: 'high',
-              actionUrl: '/dashboard/approvals',
-              time: 'Awaiting Review'
-            });
-          }
-          if (findingsCount > 0) {
-            attentionItems.push({
-              id: 'attn-conflicts',
-              type: 'conflict',
-              title: `${findingsCount} conflicting finding(s) detected across conversations`,
-              severity: 'medium',
-              actionUrl: '/dashboard/conflicts',
-              time: 'Recent Ingestion'
-            });
-          }
-        }
-
-        const decisionTrend = rawData.decisionTrend ?? [];
-
-        return NextResponse.json({
-          activeDecisionsCount: activeCount,
-          openCommitmentsCount:
-            rawData.open_commitments ?? rawData.openCommitmentsCount ?? activeCount,
-          overdueCommitmentsCount: rawData.overdue_commitments ?? 0,
-          detectedConflictsCount: findingsCount,
-          pendingApprovalsCount: pendingCount,
-          decisionTrend,
-          attentionItems,
-          recentActivity: rawData.recentActivity ?? [],
-          isProductionOffline: false
-        });
+        return NextResponse.json(transformBackendOverview(rawData));
       }
-    } catch {
-      // Backend probe failed
+      if (res.status === 401 || res.status === 403) {
+        return NextResponse.json(
+          {
+            error:
+              res.status === 401 ? 'Unauthorized upstream request' : 'Forbidden upstream request',
+            code: res.status === 401 ? 'UPSTREAM_UNAUTHORIZED' : 'UPSTREAM_FORBIDDEN'
+          },
+          { status: res.status }
+        );
+      }
+      if (res.status >= 500) {
+        return NextResponse.json(
+          {
+            error: `Upstream FastAPI backend error: HTTP ${res.status}`,
+            code: 'UPSTREAM_BACKEND_ERROR'
+          },
+          { status: res.status }
+        );
+      }
+    } catch (err: unknown) {
+      if (!isDevPreviewEnabled()) {
+        return NextResponse.json(
+          {
+            error: `Failed to connect to FastAPI backend: ${err instanceof Error ? err.message : 'Connection failed'}`,
+            code: 'BACKEND_CONNECTION_FAILED'
+          },
+          { status: 503 }
+        );
+      }
     }
   }
 
@@ -84,7 +61,6 @@ export async function GET() {
     return res;
   }
 
-  // Production fallback: never display fake metrics silently
   return NextResponse.json({
     activeDecisionsCount: 0,
     openCommitmentsCount: 0,

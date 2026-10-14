@@ -1,5 +1,7 @@
 'use client';
 
+import { formatSafeDate } from '../../lib/format-date';
+
 import React, { useState, useMemo } from 'react';
 import {
   Table,
@@ -29,10 +31,16 @@ export function DecisionsTable({ initialDecisions, initialCommitments }: Decisio
   const [selectedDecision, setSelectedDecision] = useState<Decision | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
+  // FRANZY #12: Table list pagination to bound client DOM weight
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+
   const categories = useMemo(() => {
     const set = new Set(initialDecisions.map((d) => d.category));
     return ['all', ...Array.from(set)];
   }, [initialDecisions]);
+
+  // Page resets are handled directly in search/filter handlers to avoid cascading render effects
 
   const filteredDecisions = useMemo(() => {
     return initialDecisions.filter((decision) => {
@@ -50,6 +58,12 @@ export function DecisionsTable({ initialDecisions, initialCommitments }: Decisio
     });
   }, [initialDecisions, search, statusFilter, categoryFilter]);
 
+  const totalPages = Math.ceil(filteredDecisions.length / pageSize) || 1;
+  const paginatedDecisions = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredDecisions.slice(start, start + pageSize);
+  }, [filteredDecisions, currentPage, pageSize]);
+
   const handleRowClick = (decision: Decision) => {
     setSelectedDecision(decision);
     setDrawerOpen(true);
@@ -64,20 +78,26 @@ export function DecisionsTable({ initialDecisions, initialCommitments }: Decisio
           <Input
             placeholder='Search decisions, participants, keywords...'
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
             className='pl-9 h-9 text-xs'
           />
         </div>
 
         <div className='flex flex-wrap items-center gap-2'>
           {/* Status Filter */}
-          <div className='flex items-center gap-1 border border-border/80 rounded-md p-1 bg-muted/20 text-xs'>
+          <div className='flex flex-wrap items-center gap-1 border border-border/80 rounded-md p-1 bg-muted/20 text-xs min-w-0 max-w-full'>
             {['all', 'active', 'under_review', 'superseded'].map((st) => (
               <Button
                 key={st}
                 variant={statusFilter === st ? 'secondary' : 'ghost'}
                 size='sm'
-                onClick={() => setStatusFilter(st)}
+                onClick={() => {
+                  setStatusFilter(st);
+                  setCurrentPage(1);
+                }}
                 className='h-7 px-2.5 text-xs capitalize'
               >
                 {st.replace('_', ' ')}
@@ -88,7 +108,10 @@ export function DecisionsTable({ initialDecisions, initialCommitments }: Decisio
           {/* Category Filter */}
           <select
             value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
+            onChange={(e) => {
+              setCategoryFilter(e.target.value);
+              setCurrentPage(1);
+            }}
             className='h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
           >
             {categories.map((cat) => (
@@ -123,7 +146,7 @@ export function DecisionsTable({ initialDecisions, initialCommitments }: Decisio
                 </TableCell>
               </TableRow>
             ) : (
-              filteredDecisions.map((decision) => (
+              paginatedDecisions.map((decision) => (
                 <TableRow
                   key={decision.id}
                   onClick={() => handleRowClick(decision)}
@@ -139,7 +162,7 @@ export function DecisionsTable({ initialDecisions, initialCommitments }: Decisio
                         {decision.category}
                       </Badge>
                       <span className='text-[10px] text-muted-foreground tabular-nums'>
-                        {new Date(decision.createdAt).toLocaleDateString()}
+                        {formatSafeDate(decision.createdAt)}
                       </span>
                     </div>
                   </TableCell>
@@ -180,24 +203,31 @@ export function DecisionsTable({ initialDecisions, initialCommitments }: Decisio
                     </div>
                   </TableCell>
                   <TableCell className='py-3'>
-                    <div className='flex items-center gap-1.5'>
-                      <div className='w-12 bg-muted rounded-full h-1.5 overflow-hidden'>
-                        <div
-                          className='bg-emerald-500 h-full rounded-full'
-                          style={{ width: `${decision.confidence}%` }}
-                        />
+                    {decision.confidence != null ? (
+                      <>
+                        <div className='flex items-center gap-1.5'>
+                          <div className='w-12 bg-muted rounded-full h-1.5 overflow-hidden'>
+                            <div
+                              className='bg-emerald-500 h-full rounded-full'
+                              style={{ width: `${decision.confidence}%` }}
+                            />
+                          </div>
+                          <span className='text-xs font-medium tabular-nums'>
+                            {decision.confidence}%
+                          </span>
+                        </div>
+                        <span className='text-[10px] text-muted-foreground capitalize'>
+                          {decision.confidenceLevel
+                            ? `${decision.confidenceLevel} match`
+                            : 'Semantic match'}
+                        </span>
+                      </>
+                    ) : (
+                      <div className='flex flex-col'>
+                        <span className='text-xs text-muted-foreground italic'>Unscored</span>
+                        <span className='text-[10px] text-muted-foreground/70'>Direct extract</span>
                       </div>
-                      <span className='text-xs font-medium tabular-nums'>
-                        {decision.confidenceAvailable === false
-                          ? 'Not supplied'
-                          : `${decision.confidence}%`}
-                      </span>
-                    </div>
-                    <span className='text-[10px] text-muted-foreground capitalize'>
-                      {decision.confidenceAvailable === false
-                        ? ''
-                        : `${decision.confidenceLevel} match`}
-                    </span>
+                    )}
                   </TableCell>
                   <TableCell className='py-3'>
                     <DecisionStatusBadge status={decision.status} />
@@ -220,6 +250,50 @@ export function DecisionsTable({ initialDecisions, initialCommitments }: Decisio
             )}
           </TableBody>
         </Table>
+
+        {/* FRANZY #12: Pagination Bar */}
+        {filteredDecisions.length > 0 && (
+          <div className='flex flex-col sm:flex-row items-center justify-between gap-2 px-4 py-3 border-t border-border/80 bg-muted/10 text-xs text-muted-foreground'>
+            <div>
+              Showing{' '}
+              <span className='font-semibold text-foreground tabular-nums'>
+                {(currentPage - 1) * pageSize + 1}
+              </span>{' '}
+              to{' '}
+              <span className='font-semibold text-foreground tabular-nums'>
+                {Math.min(currentPage * pageSize, filteredDecisions.length)}
+              </span>{' '}
+              of{' '}
+              <span className='font-semibold text-foreground tabular-nums'>
+                {filteredDecisions.length}
+              </span>{' '}
+              decisions
+            </div>
+            <div className='flex items-center gap-2'>
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage <= 1}
+                className='h-7 px-2.5 text-xs'
+              >
+                Previous
+              </Button>
+              <span className='tabular-nums px-1'>
+                Page {currentPage} of {totalPages}
+              </span>
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+                className='h-7 px-2.5 text-xs'
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Detail Drawer */}

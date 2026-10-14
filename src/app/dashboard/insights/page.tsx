@@ -2,7 +2,7 @@ import Link from 'next/link';
 import PageContainer from '@/components/layout/page-container';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { getInsights } from '@/features/decision-trace/api/server';
+import { getInsights } from '@/features/decision-trace/api/service';
 
 export const metadata = { title: 'AI insights — DecisionTrace' };
 

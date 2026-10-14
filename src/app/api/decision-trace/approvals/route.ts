@@ -1,95 +1,60 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { FIXTURE_APPROVALS } from '@/features/decision-trace/data/fixtures';
 import { verifyDecisionTraceAuth, isDevPreviewEnabled } from '@/lib/decision-trace-auth';
-
-interface RawApprovalPayload {
-  kind?: string;
-  topic?: string;
-  new_value?: string;
-  owner?: string;
-  due_date?: string;
-  target_decision_id?: string;
-}
-
-interface RawApproval {
-  id: string | number;
-  finding_id?: string | number;
-  status?: string;
-  action_payload?: RawApprovalPayload;
-  requester?: string;
-  execution_key?: string;
-  created_at?: string;
-  exactActionPreview?: string;
-  title?: string;
-  description?: string;
-  actionType?: unknown;
-  proposedBy?: string;
-  requestedAt?: string;
-  impactLevel?: unknown;
-  targetEntityId?: string;
-  targetEntityType?: unknown;
-  evidence?: unknown[];
-}
+import { transformBackendApprovals } from '@/features/decision-trace/api/transformers';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const authResult = await verifyDecisionTraceAuth();
   if (!authResult.authenticated) {
     return authResult.response;
   }
 
+  const { searchParams } = request.nextUrl;
   const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
+
   if (backendUrl) {
     try {
-      const res = await fetch(`${backendUrl}/approvals`, {
+      const res = await fetch(`${backendUrl}/approvals?${searchParams.toString()}`, {
         headers: authResult.headers,
-        cache: 'no-store',
-        signal: AbortSignal.timeout(10000)
+        cache: 'no-store'
       });
+
       if (res.ok) {
         const raw = await res.json();
-        const items: RawApproval[] = Array.isArray(raw) ? raw : (raw.items ?? []);
-        const mapped = items.map((r: RawApproval) => {
-          if (r.exactActionPreview && r.title) {
-            return r; // Already in frontend format
-          }
-          const topic = (r.action_payload?.topic || 'Decision')
-            .replace(/_/g, ' ')
-            .replace(/\b\w/g, (c: string) => c.toUpperCase());
-          return {
-            id: String(r.id),
-            title: `Approve Update: ${topic}`,
-            description: `Agent proposes updating ${topic} to "${r.action_payload?.new_value || ''}".`,
-            actionType:
-              r.action_payload?.kind === 'request_decision_update'
-                ? 'supersede_decision'
-                : r.action_payload?.kind === 'create_decision'
-                  ? 'create_decision'
-                  : r.action_payload?.kind === 'create_task'
-                    ? 'create_task'
-                    : 'request_clarification',
-            proposedBy: `Lyzr Autonomous Guardian (${r.requester || 'Agent'})`,
-            requestedAt: r.created_at || new Date().toISOString(),
-            status:
-              r.status === 'pending'
-                ? 'pending'
-                : r.status === 'approved'
-                  ? 'approved'
-                  : r.status === 'clarified'
-                    ? 'clarified'
-                    : 'rejected',
-            impactLevel: 'high',
-            exactActionPreview: `${(r.action_payload?.kind || 'request clarification').replaceAll('_', ' ')}: '${r.action_payload?.topic || topic}' -> '${r.action_payload?.new_value || ''}'. Owner: ${r.action_payload?.owner || 'not specified'}. Due: ${r.action_payload?.due_date || 'not specified'}.`,
-            targetEntityId: String(r.finding_id || r.id),
-            targetEntityType: 'decision',
-            evidence: r.evidence || []
-          };
-        });
-        return NextResponse.json(mapped);
+        const items = Array.isArray(raw) ? raw : (raw.items ?? []);
+        return NextResponse.json(transformBackendApprovals(items));
       }
-    } catch {
-      // Backend probe failed
+      if (res.status === 401 || res.status === 403) {
+        return NextResponse.json(
+          {
+            error:
+              res.status === 401 ? 'Unauthorized upstream request' : 'Forbidden upstream request',
+            code: res.status === 401 ? 'UPSTREAM_UNAUTHORIZED' : 'UPSTREAM_FORBIDDEN'
+          },
+          { status: res.status }
+        );
+      }
+      if (res.status >= 500) {
+        return NextResponse.json(
+          {
+            error: `Upstream FastAPI backend error: HTTP ${res.status}`,
+            code: 'UPSTREAM_BACKEND_ERROR'
+          },
+          { status: res.status }
+        );
+      }
+    } catch (err: unknown) {
+      if (!isDevPreviewEnabled()) {
+        return NextResponse.json(
+          {
+            error: `Failed to connect to FastAPI backend: ${err instanceof Error ? err.message : 'Connection failed'}`,
+            code: 'BACKEND_CONNECTION_FAILED'
+          },
+          { status: 503 }
+        );
+      }
     }
   }
 
@@ -99,5 +64,5 @@ export async function GET() {
     return res;
   }
 
-  return NextResponse.json({ error: 'Backend unavailable. Please retry.' }, { status: 503 });
+  return NextResponse.json([]);
 }

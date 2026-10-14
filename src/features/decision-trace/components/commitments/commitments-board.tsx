@@ -58,22 +58,21 @@ export function CommitmentsBoard({ initialCommitments }: CommitmentsBoardProps) 
       for (const item of items) {
         const prev = commitments.find((c) => c.id === item.id);
         if (prev && prev.status !== typedStatus) {
-          const previousStatus = prev.status;
-          // Optimistically update
-          setCommitments((prevList) =>
-            prevList.map((c) => (c.id === item.id ? { ...c, status: typedStatus } : c))
-          );
-
+          // Direct commitment changes cannot bypass approval.
+          // Display only confirmed backend mutation results.
           try {
-            await updateCommitmentStatus(item.id, typedStatus);
-            toast.success(`Commitment status moved to ${typedStatus.replace('_', ' ')}`);
-          } catch (err: unknown) {
-            // Revert on backend rejection / offline state
+            const confirmedResult = await updateCommitmentStatus(item.id, typedStatus);
             setCommitments((prevList) =>
-              prevList.map((c) => (c.id === item.id ? { ...c, status: previousStatus } : c))
+              prevList.map((c) =>
+                c.id === item.id ? { ...c, status: confirmedResult.status || typedStatus } : c
+              )
             );
+            toast.success(
+              `Commitment status updated to ${(confirmedResult.status || typedStatus).replace('_', ' ')}`
+            );
+          } catch (err: unknown) {
             const message = err instanceof Error ? err.message : 'Update failed';
-            toast.error(`Reverted: ${message}`);
+            toast.error(message);
           }
           return;
         }
@@ -130,7 +129,7 @@ export function CommitmentsBoard({ initialCommitments }: CommitmentsBoardProps) 
       </div>
 
       {/* Kanban Board Container */}
-      <div className='overflow-x-auto pb-4'>
+      <div className='w-full min-w-0 max-w-full overflow-x-auto pb-4'>
         <Kanban
           value={columns}
           onValueChange={(val) => handleValueChange(val as Record<string, Commitment[]>)}

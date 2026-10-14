@@ -1,5 +1,5 @@
 import { DecisionDistributionChart } from '@/features/decision-trace/components/overview/decision-distribution-chart';
-import { getDecisions } from '@/features/decision-trace/api/server';
+import { getDecisions } from '@/features/decision-trace/api/service';
 
 export default async function PieStats() {
   const decisions = await getDecisions();

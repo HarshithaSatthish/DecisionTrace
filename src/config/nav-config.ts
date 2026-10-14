@@ -78,11 +78,27 @@ export const navGroups: NavGroup[] = [
         items: []
       },
       {
+        title: 'Conversations',
+        url: '/dashboard/conversations',
+        icon: 'chat',
+        isActive: false,
+        shortcut: ['c', 'v'],
+        items: []
+      },
+      {
         title: 'Activity',
         url: '/dashboard/activity',
         icon: 'activity',
         isActive: false,
         shortcut: ['a', 'c'],
+        items: []
+      },
+      {
+        title: 'Omi Connection',
+        url: '/dashboard/settings/omi',
+        icon: 'settings',
+        isActive: false,
+        shortcut: ['o', 'm'],
         items: []
       },
       {
@@ -92,7 +108,7 @@ export const navGroups: NavGroup[] = [
         items: []
       },
       {
-        title: 'Integrations',
+        title: 'Integration health',
         url: '/dashboard/integrations',
         icon: 'settings',
         items: []

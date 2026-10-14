@@ -1,28 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { FIXTURE_COMMITMENTS } from '@/features/decision-trace/data/fixtures';
 import { verifyDecisionTraceAuth, isDevPreviewEnabled } from '@/lib/decision-trace-auth';
+import { transformBackendDecisionsToCommitments } from '@/features/decision-trace/api/transformers';
 
 export const dynamic = 'force-dynamic';
-
-interface RawCommitment {
-  id: string | number;
-  title?: string;
-  topic?: string;
-  task?: string;
-  current_commitment?: string;
-  owner?: string;
-  ownerAvatar?: string;
-  due_date?: string;
-  deadline?: string;
-  status?: 'backlog' | 'in_progress' | 'blocked' | 'completed';
-  state?: string;
-  priority?: 'low' | 'medium' | 'high' | 'critical';
-  evidence?: unknown[];
-  decision_id?: string;
-  readOnly?: boolean;
-  overdue?: boolean;
-  needsFollowUp?: boolean;
-}
 
 export async function GET(request: NextRequest) {
   const authResult = await verifyDecisionTraceAuth();
@@ -35,50 +16,45 @@ export async function GET(request: NextRequest) {
 
   if (backendUrl) {
     try {
-      let res = await fetch(`${backendUrl}/commitments?${searchParams.toString()}`, {
+      const res = await fetch(`${backendUrl}/commitments?${searchParams.toString()}`, {
         headers: authResult.headers,
-        cache: 'no-store',
-        signal: AbortSignal.timeout(10000)
-      }).catch(() => null);
+        cache: 'no-store'
+      });
 
-      if (!res || !res.ok) {
-        // Fallback to /decisions in Harshitha's architecture where decisions contain current_commitment
-        res = await fetch(`${backendUrl}/decisions?${searchParams.toString()}`, {
-          headers: authResult.headers,
-          cache: 'no-store',
-          signal: AbortSignal.timeout(10000)
-        }).catch(() => null);
-      }
-
-      if (res && res.ok) {
+      if (res.ok) {
         const raw = await res.json();
-        const items: RawCommitment[] = Array.isArray(raw) ? raw : (raw.items ?? []);
-        const mapped = items.map((d: RawCommitment) => {
-          const topicTitle = (d.topic || 'Commitment')
-            .replace(/_/g, ' ')
-            .replace(/\b\w/g, (c: string) => c.toUpperCase());
-          return {
-            id: String(d.id),
-            title: d.title || topicTitle,
-            task: d.task || d.current_commitment || topicTitle,
-            owner: d.owner || 'Unassigned',
-            ownerAvatar: d.ownerAvatar,
-            deadline: d.due_date || d.deadline || 'Not specified',
-            status: d.status || (d.state === 'active' ? 'in_progress' : 'completed'),
-            priority: d.priority || 'high',
-            relatedDecisionId: d.decision_id || String(d.id),
-            relatedDecisionTitle: topicTitle,
-            evidence: Array.isArray(d.evidence) ? d.evidence : [],
-            progressPercentage: undefined,
-            readOnly: d.readOnly ?? false,
-            overdue: d.overdue ?? false,
-            needsFollowUp: d.needsFollowUp ?? false
-          };
-        });
-        return NextResponse.json(mapped);
+        const items = Array.isArray(raw) ? raw : (raw.items ?? []);
+        return NextResponse.json(transformBackendDecisionsToCommitments(items));
       }
-    } catch {
-      // Backend probe failed
+      if (res.status === 401 || res.status === 403) {
+        return NextResponse.json(
+          {
+            error:
+              res.status === 401 ? 'Unauthorized upstream request' : 'Forbidden upstream request',
+            code: res.status === 401 ? 'UPSTREAM_UNAUTHORIZED' : 'UPSTREAM_FORBIDDEN'
+          },
+          { status: res.status }
+        );
+      }
+      if (res.status >= 500) {
+        return NextResponse.json(
+          {
+            error: `Upstream FastAPI backend error: HTTP ${res.status}`,
+            code: 'UPSTREAM_BACKEND_ERROR'
+          },
+          { status: res.status }
+        );
+      }
+    } catch (err: unknown) {
+      if (!isDevPreviewEnabled()) {
+        return NextResponse.json(
+          {
+            error: `Failed to connect to FastAPI backend: ${err instanceof Error ? err.message : 'Connection failed'}`,
+            code: 'BACKEND_CONNECTION_FAILED'
+          },
+          { status: 503 }
+        );
+      }
     }
   }
 
@@ -103,5 +79,5 @@ export async function GET(request: NextRequest) {
     return res;
   }
 
-  return NextResponse.json({ error: 'Backend unavailable. Please retry.' }, { status: 503 });
+  return NextResponse.json([]);
 }

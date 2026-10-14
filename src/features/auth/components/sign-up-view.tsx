@@ -1,30 +1,27 @@
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { SignUp as ClerkSignUpForm } from '@clerk/nextjs';
-import { Metadata } from 'next';
 import Link from 'next/link';
 import { InteractiveGridPattern } from './interactive-grid';
-
-export const metadata: Metadata = {
-  title: 'Authentication',
-  description: 'Sign in to review decisions, commitments, and proposed actions.'
-};
 
 export default function SignUpViewPage() {
   return (
     <div className='relative h-screen flex-col items-center justify-center md:grid lg:max-w-none lg:grid-cols-2 lg:px-0'>
       <Link
-        href='/examples/authentication'
+        href='/auth/sign-in'
         className={cn(
           buttonVariants({ variant: 'ghost' }),
           'absolute top-4 right-4 hidden md:top-8 md:right-8'
         )}
       >
-        Sign Up
+        Sign In
       </Link>
       <div className='relative hidden h-full flex-col p-10 lg:flex dark:border-r'>
         <div className='absolute inset-0 bg-sidebar' />
-        <div className='text-sidebar-foreground relative z-20 flex items-center text-lg font-medium'>
+        <Link
+          href='/dashboard/overview'
+          className='text-sidebar-foreground relative z-20 flex items-center text-lg font-bold tracking-tight'
+        >
           <svg
             xmlns='http://www.w3.org/2000/svg'
             viewBox='0 0 24 24'
@@ -33,12 +30,12 @@ export default function SignUpViewPage() {
             strokeWidth='2'
             strokeLinecap='round'
             strokeLinejoin='round'
-            className='mr-2 h-6 w-6'
+            className='mr-2 h-6 w-6 text-indigo-500'
           >
-            <path d='M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3' />
+            <path d='M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5' />
           </svg>
           DecisionTrace
-        </div>
+        </Link>
         <InteractiveGridPattern
           className={cn(
             'mask-[radial-gradient(400px_circle_at_center,white,transparent)]',
@@ -46,13 +43,13 @@ export default function SignUpViewPage() {
           )}
         />
         <div className='text-sidebar-foreground relative z-20 mt-auto'>
-          <blockquote className='space-y-2'>
-            <p className='text-lg'>
-              Keep every decision grounded in its conversation. Review important changes before they
-              take effect.
+          <blockquote className='space-y-2 border-l-2 border-indigo-500/50 pl-4'>
+            <p className='text-sm leading-relaxed text-sidebar-foreground/90 font-medium'>
+              &ldquo;Continuous decision lineage tracking with real-time commitment monitoring and
+              zero autonomous drift.&rdquo;
             </p>
-            <footer className='text-sidebar-foreground/70 text-sm'>
-              Autonomous Decision & Commitment Guardian
+            <footer className='text-sidebar-foreground/70 text-xs font-semibold uppercase tracking-wider'>
+              DecisionTrace Guardian &bull; Autonomous Governance
             </footer>
           </blockquote>
         </div>

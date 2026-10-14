@@ -12,6 +12,7 @@ import { Icons } from '@/components/icons';
 import { Commitment } from '../../types';
 import { CommitmentStatusBadge, PriorityBadge } from '../status-badges';
 import { EvidenceCard } from '../evidence-card';
+import { formatSafeDate } from '../../lib/format-date';
 import Link from 'next/link';
 
 interface CommitmentDetailModalProps {
@@ -33,9 +34,9 @@ export function CommitmentDetailModal({
         <DialogHeader className='pb-3 border-b border-border/40'>
           <div className='flex items-center gap-2 pb-1'>
             <CommitmentStatusBadge status={commitment.status} />
-            <PriorityBadge priority={commitment.priority} />
+            {commitment.priority ? <PriorityBadge priority={commitment.priority} /> : null}
             <span className='ml-auto text-xs text-muted-foreground tabular-nums'>
-              Due {commitment.deadline}
+              {commitment.deadline ? `Due ${formatSafeDate(commitment.deadline)}` : 'No deadline'}
             </span>
           </div>
           <DialogTitle className='text-lg font-bold text-foreground'>
@@ -43,7 +44,7 @@ export function CommitmentDetailModal({
           </DialogTitle>
           <DialogDescription className='text-xs text-muted-foreground'>
             ID: {commitment.id} &bull; Owner:{' '}
-            <span className='font-medium text-foreground'>{commitment.owner}</span>
+            <span className='font-medium text-foreground'>{commitment.owner || 'Unassigned'}</span>
           </DialogDescription>
         </DialogHeader>
 

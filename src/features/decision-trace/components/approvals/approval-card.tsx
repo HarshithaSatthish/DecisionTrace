@@ -1,5 +1,7 @@
 'use client';
 
+import { formatSafeDate } from '../../lib/format-date';
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -71,7 +73,7 @@ export function ApprovalCard({ approval, onActionComplete }: ApprovalCardProps) 
             </Badge>
           </div>
           <time className='text-xs text-muted-foreground tabular-nums'>
-            Requested on {new Date(approval.requestedAt).toLocaleDateString()}
+            Requested on {formatSafeDate(approval.requestedAt)}
           </time>
         </div>
         <CardTitle className='text-base font-bold text-foreground pt-1'>{approval.title}</CardTitle>
@@ -185,7 +187,8 @@ export function ApprovalCard({ approval, onActionComplete }: ApprovalCardProps) 
               </div>
             </div>
             <p className='text-[10px] text-muted-foreground'>
-              Your review and any executed change are recorded in the activity history.
+              Requires authenticated backend consensus endpoint call (/api/decision-trace/approvals/
+              {approval.id}).
             </p>
           </div>
         )}
