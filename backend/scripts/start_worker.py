@@ -11,9 +11,11 @@ from rq.serializers import JSONSerializer
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.core.config import settings
+from app.core.logging import setup_logging
 from app.workers.queue import get_queue, get_redis_connection
 
 if __name__ == "__main__":
+    setup_logging()
     from urllib.parse import urlparse
     parsed = urlparse(settings.REDIS_URL)
     sanitized_redis = f"{parsed.scheme}://{parsed.hostname or 'localhost'}:{parsed.port or 6379}{parsed.path}"
