@@ -35,9 +35,7 @@ class LyzrAgentAdapter:
         payload: AgentInvocationPayload,
     ) -> AgentAnalysisResult:
         """Execute agent analysis via live Lyzr API or deterministic verification engine."""
-        valid_chunk_ids: set[str] = set(payload.new_evidence_ids) | {
-            h.chunk_id for h in payload.historical_evidence
-        }
+        valid_chunk_ids: set[str] = set(payload.new_evidence_ids) | {h.chunk_id for h in payload.historical_evidence}
 
         if self.api_key and self.manager_agent_id:
             try:
@@ -81,7 +79,8 @@ class LyzrAgentAdapter:
             '  "evidence_chunk_ids": string[],\n'
             '  "explanation": string,\n'
             '  "proposed_action": {"kind": "create_decision"|"request_decision_update"|'
-            '"request_clarification", "target_decision_id": null, "new_value": string, "topic": string} | null,\n'
+            '"request_clarification", "target_decision_id": null, "new_value": string, "topic": string, '
+            '"owner": string | null, "due_date": ISO8601 datetime | null} | null,\n'
             '  "requires_human_approval": true | false\n'
             "}\n"
             "4. Evidence IDs MUST strictly belong to new_evidence_ids or historical_evidence."
@@ -137,7 +136,7 @@ class LyzrAgentAdapter:
                         lb = trimmed.rfind("}")
                         if fb != -1 and lb != -1 and lb > fb:
                             try:
-                                parsed_dict = json.loads(trimmed[fb:lb+1])
+                                parsed_dict = json.loads(trimmed[fb : lb + 1])
                             except json.JSONDecodeError:
                                 pass
             elif isinstance(raw_text, dict):
@@ -173,9 +172,7 @@ class LyzrAgentAdapter:
             )
             # If the finding cited fabricated evidence and has NO genuine evidence verified:
             if not verified_cids:
-                logger.error(
-                    "Rejecting finding: All cited evidence IDs were fabricated or unverified."
-                )
+                logger.error("Rejecting finding: All cited evidence IDs were fabricated or unverified.")
                 result.classification = "insufficient_evidence"
                 result.proposed_action = None
                 result.explanation = (
@@ -186,12 +183,30 @@ class LyzrAgentAdapter:
 
         result.evidence_chunk_ids = verified_cids
 
+        if result.proposed_action and not verified_cids:
+            result.classification = "insufficient_evidence"
+            result.proposed_action = None
+            result.requires_human_approval = False
+            result.explanation = "Rejected: Proposed mutation has no verified evidence."
+
+        # Bind updates to the version that was actually presented to the agent.
+        if result.proposed_action and result.proposed_action.kind == "request_decision_update":
+            matching = [d for d in payload.existing_decisions if d.decision_id == result.proposed_action.target_decision_id]
+            if not matching:
+                matching = [d for d in payload.existing_decisions if d.topic == result.topic_key]
+            if len(matching) != 1:
+                result.proposed_action = None
+                result.requires_human_approval = False
+                result.classification = "insufficient_evidence"
+                result.explanation = "Rejected: Decision update has no unambiguous existing target."
+            else:
+                result.proposed_action.target_decision_id = matching[0].decision_id
+                result.proposed_action.expected_version = matching[0].version
+
         # 2. Allowlisted action guard
         if result.proposed_action:
             if result.proposed_action.kind not in payload.allowed_actions:
-                logger.warning(
-                    f"Agent proposed non-allowlisted action '{result.proposed_action.kind}'. Rejecting action."
-                )
+                logger.warning(f"Agent proposed non-allowlisted action '{result.proposed_action.kind}'. Rejecting action.")
                 result.proposed_action = None
 
         # 3. Always enforce human approval for mutations
@@ -209,17 +224,11 @@ class LyzrAgentAdapter:
 
         # Check for historical evidence indicating an existing commitment
         historical_excerpts = [h.excerpt.lower() for h in payload.historical_evidence]
-        has_historical_commitment = (
-            len(historical_excerpts) > 0 or len(payload.existing_decisions) > 0
-        )
+        has_historical_commitment = len(historical_excerpts) > 0 or len(payload.existing_decisions) > 0
 
         # Topic detection heuristics
         topic_key = "general_commitment"
-        if (
-            "review" in transcript_lower
-            or "meeting" in transcript_lower
-            or "prototype" in transcript_lower
-        ):
+        if "review" in transcript_lower or "meeting" in transcript_lower or "prototype" in transcript_lower:
             topic_key = "prototype_review"
         elif "deploy" in transcript_lower or "release" in transcript_lower:
             topic_key = "deployment_schedule"
@@ -250,9 +259,7 @@ class LyzrAgentAdapter:
             elif payload.historical_evidence:
                 previous_val = payload.historical_evidence[0].excerpt
 
-            target_decision_id = (
-                payload.existing_decisions[0].decision_id if payload.existing_decisions else None
-            )
+            target_decision_id = payload.existing_decisions[0].decision_id if payload.existing_decisions else None
 
             # Extract new value if present
             new_val = payload.new_transcript
@@ -281,8 +288,7 @@ class LyzrAgentAdapter:
             )
 
         elif not has_historical_commitment and any(
-            w in transcript_lower
-            for w in ["will", "is scheduled", "agreed", "decided", "at", "due", "let's"]
+            w in transcript_lower for w in ["will", "is scheduled", "agreed", "decided", "at", "due", "let's"]
         ):
             return AgentAnalysisResult(
                 classification="new_commitment",
@@ -300,15 +306,11 @@ class LyzrAgentAdapter:
                 requires_human_approval=True,
             )
 
-        elif has_historical_commitment and any(
-            w in transcript_lower for w in ["disagree", "conflict", "wait no"]
-        ):
+        elif has_historical_commitment and any(w in transcript_lower for w in ["disagree", "conflict", "wait no"]):
             return AgentAnalysisResult(
                 classification="possible_conflict",
                 topic_key=topic_key,
-                previous_value=payload.historical_evidence[0].excerpt
-                if payload.historical_evidence
-                else "Unknown",
+                previous_value=payload.historical_evidence[0].excerpt if payload.historical_evidence else "Unknown",
                 new_value=payload.new_transcript,
                 evidence_chunk_ids=cited_chunks,
                 explanation="Ambiguous conflict detected between historical decision and current statement.",

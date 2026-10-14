@@ -96,9 +96,7 @@ class ApprovalService:
                 topic=topic,
                 current_commitment=commitment_val,
                 owner=action_payload.get("owner"),
-                due_date=datetime.fromisoformat(action_payload["due_date"])
-                if action_payload.get("due_date")
-                else None,
+                due_date=datetime.fromisoformat(action_payload["due_date"]) if action_payload.get("due_date") else None,
                 state="active",
                 version=1,
                 source_provenance={
@@ -112,6 +110,17 @@ class ApprovalService:
             session.flush()
 
             # Link evidence
+            if resulting_decision.owner or resulting_decision.due_date:
+                session.add(
+                    Task(
+                        user_id=user_id,
+                        decision_id=resulting_decision.id,
+                        title=topic,
+                        description=commitment_val,
+                        owner=resulting_decision.owner,
+                        due_date=resulting_decision.due_date,
+                    )
+                )
             for ev in finding.evidence_links:
                 session.add(
                     DecisionEvidence(
@@ -139,9 +148,7 @@ class ApprovalService:
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail="Invalid target_decision_id format",
                     )
-                target_dec = session.exec(
-                    select(Decision).where(Decision.id == target_uuid).with_for_update()
-                ).first()
+                target_dec = session.exec(select(Decision).where(Decision.id == target_uuid).with_for_update()).first()
                 if not target_dec:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
@@ -173,6 +180,13 @@ class ApprovalService:
             new_val = action_payload.get("new_value") or finding.new_value or ""
 
             if target_dec:
+                if (
+                    action_payload.get("expected_version") is not None
+                    and target_dec.version != action_payload["expected_version"]
+                ):
+                    raise HTTPException(
+                        status_code=409, detail="Decision changed after this proposal. Request a new analysis before approving."
+                    )
                 before_state = {
                     "decision_id": str(target_dec.id),
                     "current_commitment": target_dec.current_commitment,
@@ -181,6 +195,15 @@ class ApprovalService:
                 target_dec.current_commitment = new_val
                 target_dec.version += 1  # Optimistic version bump
                 target_dec.updated_at = now
+                target_dec.source_provenance = {"finding_id": str(finding.id), "conversation_id": str(finding.conversation_id)}
+                existing_chunks = {ev.chunk_id for ev in target_dec.evidence}
+                for ev in finding.evidence_links:
+                    if ev.chunk_id not in existing_chunks:
+                        session.add(
+                            DecisionEvidence(
+                                decision_id=target_dec.id, finding_id=finding.id, chunk_id=ev.chunk_id, created_at=now
+                            )
+                        )
                 session.add(target_dec)
                 resulting_decision = target_dec
                 after_state = {
@@ -215,6 +238,8 @@ class ApprovalService:
                 title=task_title,
                 description=finding.explanation,
                 status="pending",
+                owner=action_payload.get("owner"),
+                due_date=datetime.fromisoformat(action_payload["due_date"]) if action_payload.get("due_date") else None,
                 created_at=now,
                 updated_at=now,
             )
@@ -252,9 +277,7 @@ class ApprovalService:
             id=approval_req.id,
             status="approved",
             executed_at=now,
-            resulting_decision=DecisionRead.model_validate(resulting_decision)
-            if resulting_decision
-            else None,
+            resulting_decision=DecisionRead.model_validate(resulting_decision) if resulting_decision else None,
             message="Approval executed and authoritative record updated successfully",
         )
 

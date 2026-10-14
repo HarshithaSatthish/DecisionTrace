@@ -54,6 +54,7 @@ class AgentInvocationPayload(BaseModel):
 class ProposedAction(BaseModel):
     kind: ActionKind
     target_decision_id: uuid.UUID | None = None
+    expected_version: int | None = Field(default=None, ge=1)
     new_value: str | None = None
     topic: str | None = None
     owner: str | None = None
