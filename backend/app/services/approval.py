@@ -2,7 +2,7 @@
 
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
 from sqlmodel import Session, select
@@ -22,6 +22,22 @@ from app.schemas.decision import DecisionRead
 logger = logging.getLogger(__name__)
 
 SUPPORTED_ACTION_KINDS = {"create_decision", "request_decision_update", "create_task"}
+
+
+
+def _parse_due_date(value: object) -> datetime | None:
+    """Parse a stored proposal due_date; naive values (older proposals) are treated as UTC.
+
+    Live PR #16 E2E: Lyzr's bare '2026-10-14' was stored naive and approving it raised
+    'Datetime values must have timezone information' (HTTP 500).
+    """
+    if not value:
+        return None
+    try:
+        parsed = value if isinstance(value, datetime) else datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
 
 
 class ApprovalService:
@@ -96,7 +112,7 @@ class ApprovalService:
                 topic=topic,
                 current_commitment=commitment_val,
                 owner=action_payload.get("owner"),
-                due_date=datetime.fromisoformat(action_payload["due_date"]) if action_payload.get("due_date") else None,
+                due_date=_parse_due_date(action_payload.get("due_date")),
                 state="active",
                 version=1,
                 source_provenance={
@@ -239,7 +255,7 @@ class ApprovalService:
                 description=finding.explanation,
                 status="pending",
                 owner=action_payload.get("owner"),
-                due_date=datetime.fromisoformat(action_payload["due_date"]) if action_payload.get("due_date") else None,
+                due_date=_parse_due_date(action_payload.get("due_date")),
                 created_at=now,
                 updated_at=now,
             )
