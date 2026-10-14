@@ -57,12 +57,16 @@ export async function orchestrateDecisionTraceAnalysis(
   options?: ManagerOptions
 ): Promise<ManagerAnalysisResult> {
   const config = getLyzrConfig();
-  const tenantScope =
-    input.orgId || options?.orgId || input.userId || options?.userId || 'system-global';
-  const existingIds = (input.existingDecisions || []).map((d) => d.id).join(',');
-  const sourceScope = `${input.sourceTitle || ''}:${input.channel || ''}`;
-  const configScope = `${config.extractorAgentId || ''}:${config.conflictAgentId || ''}:${config.plannerAgentId || ''}:${config.managerAgentId || ''}`;
-  const cacheKey = `${tenantScope}::${configScope}::${sourceScope}::${existingIds}::${input.conversationText.trim()}`;
+  const cacheKey = JSON.stringify({
+    orgId: options?.orgId || input.orgId,
+    userId: options?.userId || input.userId,
+    config: [config.baseUrl, config.extractorAgentId, config.conflictAgentId, config.plannerAgentId, config.managerAgentId],
+    sourceTitle: input.sourceTitle,
+    channel: input.channel,
+    timestamp: input.timestamp,
+    existingDecisions: input.existingDecisions || [],
+    conversationText: input.conversationText.trim()
+  });
 
   if (!options?.skipCache && input.conversationText.trim()) {
     const cached = ANALYSIS_CACHE.get(cacheKey);

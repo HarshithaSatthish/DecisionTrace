@@ -1,6 +1,6 @@
 import React from 'react';
 import PageContainer from '@/components/layout/page-container';
-import { getCommitments } from '@/features/decision-trace/api/service';
+import { getCommitments } from '@/features/decision-trace/api/server';
 import { CommitmentsBoard } from '@/features/decision-trace/components/commitments/commitments-board';
 import { DevelopmentPreviewBanner } from '@/features/decision-trace/components/development-preview-banner';
 import { Badge } from '@/components/ui/badge';

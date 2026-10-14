@@ -33,14 +33,16 @@ export async function GET(request: NextRequest) {
     try {
       let res = await fetch(`${backendUrl}/commitments?${searchParams.toString()}`, {
         headers: authResult.headers,
-        cache: 'no-store'
+        cache: 'no-store',
+        signal: AbortSignal.timeout(10000)
       }).catch(() => null);
 
       if (!res || !res.ok) {
         // Fallback to /decisions in Harshitha's architecture where decisions contain current_commitment
         res = await fetch(`${backendUrl}/decisions?${searchParams.toString()}`, {
           headers: authResult.headers,
-          cache: 'no-store'
+          cache: 'no-store',
+        signal: AbortSignal.timeout(10000)
         }).catch(() => null);
       }
 
@@ -57,13 +59,13 @@ export async function GET(request: NextRequest) {
             task: d.task || d.current_commitment || topicTitle,
             owner: d.owner || 'Unassigned',
             ownerAvatar: d.ownerAvatar,
-            deadline: d.due_date || d.deadline || new Date().toISOString(),
+            deadline: d.due_date || d.deadline || 'Not specified',
             status: d.status || (d.state === 'active' ? 'in_progress' : 'completed'),
             priority: d.priority || 'high',
             relatedDecisionId: String(d.id),
             relatedDecisionTitle: topicTitle,
             evidence: Array.isArray(d.evidence) ? d.evidence : [],
-            progressPercentage: d.state === 'active' ? 50 : 100
+            progressPercentage: undefined
           };
         });
         return NextResponse.json(mapped);
@@ -94,5 +96,5 @@ export async function GET(request: NextRequest) {
     return res;
   }
 
-  return NextResponse.json([]);
+  return NextResponse.json({ error: 'Backend unavailable. Please retry.' }, { status: 503 });
 }

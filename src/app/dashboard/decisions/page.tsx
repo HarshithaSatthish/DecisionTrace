@@ -1,6 +1,6 @@
 import React from 'react';
 import PageContainer from '@/components/layout/page-container';
-import { getDecisions, getCommitments } from '@/features/decision-trace/api/service';
+import { getDecisions, getCommitments } from '@/features/decision-trace/api/server';
 import { DecisionsTable } from '@/features/decision-trace/components/decisions/decisions-table';
 import { DevelopmentPreviewBanner } from '@/features/decision-trace/components/development-preview-banner';
 import { Badge } from '@/components/ui/badge';

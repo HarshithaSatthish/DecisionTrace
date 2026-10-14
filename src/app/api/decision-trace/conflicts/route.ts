@@ -37,14 +37,16 @@ export async function GET() {
     try {
       let res = await fetch(`${backendUrl}/conflicts`, {
         headers: authResult.headers,
-        cache: 'no-store'
+        cache: 'no-store',
+        signal: AbortSignal.timeout(10000)
       }).catch(() => null);
 
       if (!res || !res.ok) {
         // Fallback to /findings in Harshitha's backend
         res = await fetch(`${backendUrl}/findings`, {
           headers: authResult.headers,
-          cache: 'no-store'
+          cache: 'no-store',
+        signal: AbortSignal.timeout(10000)
         }).catch(() => null);
       }
 
@@ -125,5 +127,5 @@ export async function GET() {
     return res;
   }
 
-  return NextResponse.json([]);
+  return NextResponse.json({ error: 'Backend unavailable. Please retry.' }, { status: 503 });
 }

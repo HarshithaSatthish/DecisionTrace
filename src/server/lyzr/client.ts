@@ -143,8 +143,8 @@ export class LyzrClient {
     }
 
     // Check in-memory cache with strict tenant/user isolation
-    const tenantScope = options?.orgId || options?.userId || 'system-global';
-    const cacheKey = `${tenantScope}::${agentId}::${message.trim()}`;
+    const baseUrl = options?.customBaseUrl || this.config.baseUrl;
+    const cacheKey = JSON.stringify([options?.orgId, options?.userId, baseUrl, agentId, message.trim()]);
     if (!options?.skipCache) {
       const cached = IN_MEMORY_CACHE.get(cacheKey);
       if (cached && cached.expiresAt > Date.now()) {
@@ -152,7 +152,6 @@ export class LyzrClient {
       }
     }
 
-    const baseUrl = options?.customBaseUrl || this.config.baseUrl;
     const url = `${baseUrl.replace(/\/+$/, '')}/inference/chat/`;
     const timeoutMs = options?.timeoutMs ?? this.config.timeoutMs;
     const maxRetries = options?.maxRetries ?? this.config.maxRetries;

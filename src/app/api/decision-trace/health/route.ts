@@ -46,16 +46,14 @@ export async function GET() {
       // Check readiness probe if available
       let readyData = null;
       try {
-        const readyRes = await fetch(`${baseUrl}/ready`, { cache: 'no-store' });
-        if (readyRes.ok) {
-          readyData = await readyRes.json().catch(() => null);
-        }
+        const readyRes = await fetch(`${baseUrl}/ready`, { cache: 'no-store', signal: AbortSignal.timeout(2500) });
+        readyData = await readyRes.json().catch(() => null);
       } catch {
         // Non-fatal
       }
 
       const isHealthy =
-        data.status === 'healthy' || data.status === 'ok' || data.status === 'ready';
+        (data.status === 'healthy' || data.status === 'ok' || data.status === 'ready') && readyData?.status === 'ready';
       return NextResponse.json({
         status: isHealthy ? 'connected' : 'degraded',
         connected: isHealthy,

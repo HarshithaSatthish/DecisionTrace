@@ -16,13 +16,15 @@ export async function GET() {
       // Harshitha's backend uses /overview; also support legacy /metrics
       let res = await fetch(`${backendUrl}/overview`, {
         headers: authResult.headers,
-        cache: 'no-store'
+        cache: 'no-store',
+        signal: AbortSignal.timeout(10000)
       }).catch(() => null);
 
       if (!res || !res.ok) {
         res = await fetch(`${backendUrl}/metrics`, {
           headers: authResult.headers,
-          cache: 'no-store'
+          cache: 'no-store',
+        signal: AbortSignal.timeout(10000)
         }).catch(() => null);
       }
 
@@ -30,7 +32,7 @@ export async function GET() {
         const rawData = await res.json();
         const activeCount = rawData.active_decisions ?? rawData.activeDecisionsCount ?? 0;
         const pendingCount = rawData.pending_approvals ?? rawData.pendingApprovalsCount ?? 0;
-        const findingsCount = rawData.recent_findings ?? rawData.detectedConflictsCount ?? 0;
+        const findingsCount = rawData.detected_conflicts ?? rawData.detectedConflictsCount ?? 0;
 
         const attentionItems = rawData.attentionItems ?? [];
         if (attentionItems.length === 0) {
@@ -40,7 +42,7 @@ export async function GET() {
               type: 'approval',
               title: `${pendingCount} decision proposal(s) require human consensus`,
               severity: 'high',
-              actionUrl: '/dashboard/audit-log',
+              actionUrl: '/dashboard/approvals',
               time: 'Awaiting Review'
             });
           }
@@ -56,24 +58,7 @@ export async function GET() {
           }
         }
 
-        const decisionTrend = rawData.decisionTrend ?? [
-          {
-            period: 'Week 1',
-            decisions: Math.max(0, Math.floor(activeCount * 0.25)),
-            commitments: Math.max(0, Math.floor(activeCount * 0.25))
-          },
-          {
-            period: 'Week 2',
-            decisions: Math.max(0, Math.floor(activeCount * 0.5)),
-            commitments: Math.max(0, Math.floor(activeCount * 0.5))
-          },
-          {
-            period: 'Week 3',
-            decisions: Math.max(0, Math.floor(activeCount * 0.75)),
-            commitments: Math.max(0, Math.floor(activeCount * 0.75))
-          },
-          { period: 'Current', decisions: activeCount, commitments: activeCount }
-        ];
+        const decisionTrend = rawData.decisionTrend ?? [];
 
         return NextResponse.json({
           activeDecisionsCount: activeCount,

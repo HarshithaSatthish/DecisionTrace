@@ -42,7 +42,8 @@ export async function GET(request: NextRequest) {
     try {
       const res = await fetch(`${backendUrl}/decisions?${searchParams.toString()}`, {
         headers: authResult.headers,
-        cache: 'no-store'
+        cache: 'no-store',
+        signal: AbortSignal.timeout(10000)
       });
       if (res.ok) {
         const raw = await res.json();
@@ -108,5 +109,5 @@ export async function GET(request: NextRequest) {
   }
 
   // Production offline: return empty list, never fake decisions
-  return NextResponse.json([]);
+  return NextResponse.json({ error: 'Backend unavailable. Please retry.' }, { status: 503 });
 }

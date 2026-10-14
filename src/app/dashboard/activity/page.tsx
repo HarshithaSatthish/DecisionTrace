@@ -1,6 +1,6 @@
 import React from 'react';
 import PageContainer from '@/components/layout/page-container';
-import { getActivity } from '@/features/decision-trace/api/service';
+import { getActivity } from '@/features/decision-trace/api/server';
 import { ActivityTimeline } from '@/features/decision-trace/components/activity/activity-timeline';
 import { DevelopmentPreviewBanner } from '@/features/decision-trace/components/development-preview-banner';
 import { Badge } from '@/components/ui/badge';
