@@ -470,13 +470,17 @@ Hope this helps!
       expect(resWithPrior !== resWithoutPrior).toBe(true);
       expect(resWithPrior.conflicts.length).toBe(1);
       expect(resWithPrior.conflicts[0].previousDecision.id).toBe('DEC-PRIOR-01');
-      const updatedPrior = { ...priorDecision, whatWasDecided: 'Retain telemetry for 90 days.', updatedAt: '2026-02-01T00:00:00Z' };
+      const updatedPrior = {
+        ...priorDecision,
+        whatWasDecided: 'Retain telemetry for 90 days.',
+        updatedAt: '2026-02-01T00:00:00Z'
+      };
       const updatedResult = await orchestrateDecisionTraceAnalysis({
         conversationText: transcript,
         orgId: 'org_test_invalidation',
         existingDecisions: [updatedPrior]
       });
-      expect(updatedResult).not.toBe(resWithPrior);
+      expect(updatedResult === resWithPrior).toBe(false);
     });
 
     test('groundAndVerifyEvidence flags fabricated or unverified quotes as ambiguous and reduces confidence', () => {
