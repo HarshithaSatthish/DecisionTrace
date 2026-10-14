@@ -1,6 +1,6 @@
 """Omi Webhook ingestion API router."""
 
-from fastapi import APIRouter, Depends, Path, Response, status
+from fastapi import APIRouter, Depends, Path, Query, Response, status
 from sqlmodel import Session
 
 from app.db.session import get_session
@@ -21,6 +21,7 @@ def handle_omi_webhook(
     payload: OmiMemoryCreatedWebhook,
     opaque_token: str = Path(..., description="Secret installation token"),
     session: Session = Depends(get_session),
+    uid: str | None = Query(default=None, max_length=128, description="Omi user id appended by Omi"),
 ) -> WebhookResponse:
     """Ingest Omi memory event with verification, durable deduplication, and outbox commit."""
     status_code, result = ingest_omi_memory(
@@ -28,6 +29,7 @@ def handle_omi_webhook(
         opaque_token=opaque_token,
         payload=payload,
         enqueue=True,
+        omi_uid=uid,
     )
     response.status_code = status_code
     return result

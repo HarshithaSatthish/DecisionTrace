@@ -3,11 +3,17 @@
 import logging
 
 from fastapi import HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session
 
+from app.core.config import settings
 from app.core.security import hash_webhook_token
 from app.db.models import Conversation, ProcessingJob, utc_now
-from app.db.repository import get_conversation_by_source_id, get_integration_by_token_hash
+from app.db.repository import (
+    get_conversation_by_source_id,
+    get_integration_by_token_hash,
+    record_audit_event,
+)
 from app.schemas.conversation import OmiMemoryCreatedWebhook, WebhookResponse
 
 logger = logging.getLogger(__name__)
@@ -18,6 +24,7 @@ def ingest_omi_memory(
     opaque_token: str,
     payload: OmiMemoryCreatedWebhook,
     enqueue: bool = True,
+    omi_uid: str | None = None,
 ) -> tuple[int, WebhookResponse]:
     """Ingest Omi memory event with verification, durable deduplication, and outbox enqueue."""
     # 1. Verify token
@@ -29,6 +36,22 @@ def ingest_omi_memory(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or revoked Omi installation token",
         )
+
+    # 1b. Omi appends ?uid=<omi user id>. Bind it on first delivery and reject
+    # deliveries for a different Omi user on the same installation token.
+    if omi_uid:
+        if integration.external_omi_uid and integration.external_omi_uid != omi_uid:
+            if not settings.OMI_ENFORCE_UID:
+                logger.warning("Omi webhook uid does not match installation (not enforced)")
+            else:
+                logger.warning("Rejected Omi webhook: uid does not match installation")
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Omi uid does not match this installation",
+                )
+        if not integration.external_omi_uid:
+            integration.external_omi_uid = omi_uid
+            session.add(integration)
 
     # 2. Deduplication check by (installation_id, source_event_id) FIRST (idempotent for all retries)
     existing_conv = get_conversation_by_source_id(session, integration.id, payload.id)
@@ -98,7 +121,19 @@ def ingest_omi_memory(
         status="received",
     )
     session.add(conv)
-    session.flush()
+    try:
+        session.flush()
+    except IntegrityError:
+        # Concurrent retry of the same Omi event won the unique constraint race.
+        session.rollback()
+        winner = get_conversation_by_source_id(session, integration.id, payload.id)
+        if winner is None:
+            raise
+        return status.HTTP_200_OK, WebhookResponse(
+            status="duplicate",
+            conversation_id=winner.id,
+            message="Event already recorded, no duplicate work queued",
+        )
 
     job = ProcessingJob(
         conversation_id=conv.id,
@@ -111,6 +146,16 @@ def ingest_omi_memory(
         ],
     )
     session.add(job)
+    record_audit_event(
+        session=session,
+        user_id=integration.user_id,
+        action="conversation_ingested",
+        actor_type="system",
+        actor_id=f"omi:{integration.installation_id}",
+        entity_type="conversation",
+        entity_id=str(conv.id),
+        after_state={"source_event_id": payload.id, "segments": len(payload.transcript_segments)},
+    )
     session.commit()
     session.refresh(conv)
     session.refresh(job)

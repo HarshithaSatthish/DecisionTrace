@@ -3,10 +3,11 @@
 import json
 import logging
 import re
+from datetime import date
 from typing import Any
 
 import httpx
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from app.core.config import settings
 from app.schemas.agent import (
@@ -14,8 +15,20 @@ from app.schemas.agent import (
     AgentInvocationPayload,
     ProposedAction,
 )
+from app.services.dates import resolve_due_date
 
 logger = logging.getLogger(__name__)
+
+_RETRYABLE_STATUS = {408, 425, 429, 500, 502, 503, 504}
+
+
+def _is_retryable_lyzr_error(exc: BaseException) -> bool:
+    """Retry transport errors and transient HTTP statuses (rate limits, 5xx); never 4xx auth/validation."""
+    if isinstance(exc, httpx.RequestError):
+        return True
+    if isinstance(exc, httpx.HTTPStatusError):
+        return exc.response.status_code in _RETRYABLE_STATUS
+    return False
 
 
 class AgentValidationError(Exception):
@@ -60,7 +73,7 @@ class LyzrAgentAdapter:
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=4),
-        retry=retry_if_exception_type(httpx.RequestError),
+        retry=retry_if_exception(_is_retryable_lyzr_error),
         reraise=True,
     )
     async def _call_lyzr_api(self, payload: AgentInvocationPayload) -> dict[str, Any]:
@@ -81,10 +94,16 @@ class LyzrAgentAdapter:
             '  "evidence_chunk_ids": string[],\n'
             '  "explanation": string,\n'
             '  "proposed_action": {"kind": "create_decision"|"request_decision_update"|'
-            '"request_clarification", "target_decision_id": null, "new_value": string, "topic": string} | null,\n'
+            '"request_clarification", "target_decision_id": null, "new_value": string, "topic": string, '
+            '"owner": string | null, "due_date": "YYYY-MM-DD" | null} | null,\n'
             '  "requires_human_approval": true | false\n'
             "}\n"
-            "4. Evidence IDs MUST strictly belong to new_evidence_ids or historical_evidence."
+            "4. Evidence IDs MUST strictly belong to new_evidence_ids or historical_evidence. Cite the "
+            "chunk_id from new_evidence whose excerpt states the decision.\n"
+            "5. owner = the named person who committed (e.g. 'Akshay will send...' -> 'Akshay'); "
+            "use null only if no person is named. Never use 'Team' or 'Unassigned'.\n"
+            "6. Resolve relative deadlines ('by Thursday', 'Friday', 'tomorrow') against conversation_date "
+            "and return due_date as YYYY-MM-DD on or after conversation_date; null if none stated."
         )
 
         if is_studio_v3:
@@ -111,7 +130,8 @@ class LyzrAgentAdapter:
                 "context": payload.model_dump(mode="json"),
             }
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        timeout = httpx.Timeout(settings.LYZR_TIMEOUT_SECONDS, connect=10.0)
+        async with httpx.AsyncClient(timeout=timeout) as client:
             resp = await client.post(url, headers=headers, json=body)
             resp.raise_for_status()
             data = resp.json()
@@ -159,6 +179,7 @@ class LyzrAgentAdapter:
         valid_chunk_ids: set[str],
     ) -> AgentAnalysisResult:
         """Validate result against schema, drop hallucinated chunk IDs, enforce human approval."""
+        raw_data = self._normalize_raw(raw_data, payload)
         result = AgentAnalysisResult.model_validate(raw_data)
 
         # 1. Evidence Verification & Hallucination Guard
@@ -184,6 +205,10 @@ class LyzrAgentAdapter:
                 )
                 result.requires_human_approval = False
 
+        # Grounded fallback: agent cited nothing at all (no fabricated IDs either) but did
+        # classify a commitment -> attach this conversation's own chunk IDs (real, server-known).
+        if not raw_cids and payload.new_evidence_ids and result.classification != "insufficient_evidence":
+            verified_cids = [cid for cid in payload.new_evidence_ids if cid in valid_chunk_ids]
         result.evidence_chunk_ids = verified_cids
 
         # 2. Allowlisted action guard
@@ -198,6 +223,27 @@ class LyzrAgentAdapter:
         if result.proposed_action is not None:
             result.requires_human_approval = True
         return result
+
+    @staticmethod
+    def _normalize_raw(raw_data: dict[str, Any], payload: AgentInvocationPayload) -> dict[str, Any]:
+        """Coerce owner/due_date so relative or placeholder values never fail validation."""
+        if not isinstance(raw_data, dict):
+            return raw_data
+        action = raw_data.get("proposed_action")
+        if isinstance(action, dict):
+            action = dict(action)
+            owner = action.get("owner")
+            if isinstance(owner, str) and owner.strip().lower() in {"", "team", "unassigned", "unknown", "none", "n/a"}:
+                action["owner"] = None
+            anchor = date.today()
+            if payload.conversation_date:
+                try:
+                    anchor = date.fromisoformat(payload.conversation_date[:10])
+                except ValueError:
+                    pass
+            action["due_date"] = resolve_due_date(action.get("due_date"), anchor)
+            raw_data = {**raw_data, "proposed_action": action}
+        return raw_data
 
     def _deterministic_analyze(
         self,

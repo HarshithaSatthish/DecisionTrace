@@ -37,10 +37,14 @@ class Settings(BaseSettings):
     CLERK_AUDIENCE: str | None = None
     AUTH_DEV_MODE: bool = False  # Allows mock header in testing/dev
 
+    # Omi: reject deliveries whose ?uid= differs from the installation's bound Omi uid
+    OMI_ENFORCE_UID: bool = False
+
     # Lyzr Integration
     LYZR_API_KEY: str | None = None
     LYZR_BASE_URL: str = "https://agent-prod.studio.lyzr.ai/v3"
     LYZR_MANAGER_AGENT_ID: str | None = None
+    LYZR_TIMEOUT_SECONDS: float = 45.0
 
     # FastEmbed Cache
     FASTEMBED_CACHE_PATH: str | None = None
