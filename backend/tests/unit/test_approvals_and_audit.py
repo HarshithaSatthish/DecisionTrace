@@ -468,9 +468,11 @@ def test_concurrent_approvals_with_real_postgresql():
     from concurrent.futures import ThreadPoolExecutor
     from sqlmodel import create_engine
 
-    pg_url = os.getenv("POSTGRES_TEST_URL", "postgresql+psycopg://postgres:postgres@localhost:5432/decisiontrace")
+    pg_url = os.getenv("POSTGRES_TEST_URL")
+    if not pg_url:
+        pytest.skip("Set POSTGRES_TEST_URL to an isolated PostgreSQL test database.")
     try:
-        pg_engine = create_engine(pg_url, pool_pre_ping=True)
+        pg_engine = create_engine(pg_url, pool_pre_ping=True, connect_args={"connect_timeout": 5})
         with pg_engine.connect() as conn:
             pass
     except Exception as e:

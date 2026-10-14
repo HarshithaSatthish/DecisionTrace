@@ -3,12 +3,13 @@
 DecisionTrace — Automated E2E Browser Test Suite
 Tests public routes, responsive viewports, and verifies server-side authentication redirects.
 """
+import os
 import sys
 import time
 from urllib.request import urlopen
 from playwright.sync_api import sync_playwright
 
-BASE_URL = "http://localhost:3000"
+BASE_URL = os.environ.get("DT_E2E_BASE_URL", "http://localhost:3000").rstrip("/")
 
 PUBLIC_ROUTES = [
     {"path": "/auth/sign-in", "name": "Auth Sign In"},
@@ -24,7 +25,11 @@ PROTECTED_DASHBOARD_ROUTES = [
     "/dashboard/commitments",
     "/dashboard/conflicts",
     "/dashboard/approvals",
-    "/dashboard/activity"
+    "/dashboard/activity",
+    "/dashboard/conversations",
+    "/dashboard/insights",
+    "/dashboard/integrations",
+    "/dashboard/settings/omi"
 ]
 
 VIEWPORTS = [

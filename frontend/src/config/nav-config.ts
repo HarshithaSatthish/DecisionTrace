@@ -100,6 +100,18 @@ export const navGroups: NavGroup[] = [
         isActive: false,
         shortcut: ['o', 'm'],
         items: []
+      },
+      {
+        title: 'AI insights',
+        url: '/dashboard/insights',
+        icon: 'decisions',
+        items: []
+      },
+      {
+        title: 'Integration health',
+        url: '/dashboard/integrations',
+        icon: 'settings',
+        items: []
       }
     ]
   },

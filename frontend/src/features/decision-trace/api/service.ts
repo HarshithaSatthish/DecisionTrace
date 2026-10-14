@@ -22,6 +22,7 @@ import {
   OmiIntegrationStatus,
   OmiLinkResult
 } from '../types';
+import type { AgentInsight, IntegrationStatus } from '../types';
 import {
   FIXTURE_DECISIONS,
   FIXTURE_COMMITMENTS,
@@ -52,6 +53,25 @@ export const EMPTY_METRICS: DashboardMetrics = {
   recentActivity: [],
   isProductionOffline: true
 };
+
+export async function getIntegrationHealth(): Promise<IntegrationStatus> {
+  const result = await fetch('/api/decision-trace/health', { signal: AbortSignal.timeout(10000) });
+  if (!result.ok) throw new Error('Health check failed. Please retry.');
+  return result.json();
+}
+
+export async function getInsights(): Promise<AgentInsight[]> {
+  if (isServer()) {
+    return fetchBackendOnServer(
+      '/findings?limit=100',
+      (raw) => (raw as { items: AgentInsight[] }).items
+    );
+  }
+  const result = await fetchClientEndpoint<{ items: AgentInsight[] }>(
+    '/api/decision-trace/insights'
+  );
+  return result.items;
+}
 
 /**
  * Structured API Error for DecisionTrace client and server requests.
@@ -212,7 +232,7 @@ async function getServerAuthHeaders(
     return {
       'Content-Type': 'application/json',
       'X-User-Id': process.env.TEST_AUTH_USER_ID,
-      'Authorization': `Bearer test_token_${process.env.TEST_AUTH_USER_ID}`
+      Authorization: `Bearer test_token_${process.env.TEST_AUTH_USER_ID}`
     };
   }
   try {
@@ -309,10 +329,7 @@ async function fetchBackendOnServer<T>(
 /**
  * Client-side browser fetcher to Next.js route handlers.
  */
-async function fetchClientEndpoint<T>(
-  clientUrl: string,
-  timeoutMs = 10000
-): Promise<T> {
+async function fetchClientEndpoint<T>(clientUrl: string, timeoutMs = 10000): Promise<T> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -363,9 +380,9 @@ async function fetchClientEndpoint<T>(
 // Dashboard Metrics & Overview
 // Backend Contract: GET /overview (OverviewResponse)
 // ----------------------------------------------------------------------------
-export async function getDashboardMetrics(
-  options?: { authHeaders?: Record<string, string> }
-): Promise<DashboardMetrics> {
+export async function getDashboardMetrics(options?: {
+  authHeaders?: Record<string, string>;
+}): Promise<DashboardMetrics> {
   if (isServer()) {
     const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
     if (!backendUrl) {
@@ -429,9 +446,7 @@ export async function getDecisions(
       return await fetchBackendOnServer(
         `/decisions${qs}`,
         (raw) => {
-          const items = Array.isArray(raw)
-            ? raw
-            : ((raw as { items?: unknown[] })?.items ?? []);
+          const items = Array.isArray(raw) ? raw : ((raw as { items?: unknown[] })?.items ?? []);
           let result = transformBackendDecisions(items);
           if (filters?.search) {
             const q = filters.search.toLowerCase();
@@ -507,13 +522,11 @@ export async function getCommitments(
       return [];
     }
     try {
-      // Calls /decisions under the implemented decision-derived data contract
+      // Tasks and legacy authoritative commitments share the backend listing.
       return await fetchBackendOnServer(
-        `/decisions${qs}`,
+        `/commitments${qs}`,
         (raw) => {
-          const items = Array.isArray(raw)
-            ? raw
-            : ((raw as { items?: unknown[] })?.items ?? []);
+          const items = Array.isArray(raw) ? raw : ((raw as { items?: unknown[] })?.items ?? []);
           let result = transformBackendDecisionsToCommitments(items);
           if (filters?.status && filters.status !== 'all') {
             result = result.filter((c) => c.status === filters.status);
@@ -581,9 +594,7 @@ export async function getConflicts(
       return await fetchBackendOnServer(
         `/findings${qs}`,
         (raw) => {
-          const items = Array.isArray(raw)
-            ? raw
-            : ((raw as { items?: unknown[] })?.items ?? []);
+          const items = Array.isArray(raw) ? raw : ((raw as { items?: unknown[] })?.items ?? []);
           let result = transformBackendFindingsToConflicts(items);
           if (filters?.status && filters.status !== 'all') {
             result = result.filter((c) => c.status === filters.status);
@@ -648,9 +659,7 @@ export async function getApprovals(
       return await fetchBackendOnServer(
         `/approvals${qs}`,
         (raw) => {
-          const items = Array.isArray(raw)
-            ? raw
-            : ((raw as { items?: unknown[] })?.items ?? []);
+          const items = Array.isArray(raw) ? raw : ((raw as { items?: unknown[] })?.items ?? []);
           let result = transformBackendApprovals(items);
           if (filters?.status && filters.status !== 'all') {
             result = result.filter((a) => a.status === filters.status);
@@ -712,9 +721,7 @@ export async function getActivity(
       return await fetchBackendOnServer(
         `/activity${qs}`,
         (raw) => {
-          const items = Array.isArray(raw)
-            ? raw
-            : ((raw as { items?: unknown[] })?.items ?? []);
+          const items = Array.isArray(raw) ? raw : ((raw as { items?: unknown[] })?.items ?? []);
           let result = transformBackendActivity(items);
           if (filters?.type && filters.type !== 'all') {
             result = result.filter((a) => a.type === filters.type);
@@ -722,9 +729,7 @@ export async function getActivity(
           if (filters?.search) {
             const q = filters.search.toLowerCase();
             result = result.filter(
-              (a) =>
-                a.title.toLowerCase().includes(q) ||
-                a.description.toLowerCase().includes(q)
+              (a) => a.title.toLowerCase().includes(q) || a.description.toLowerCase().includes(q)
             );
           }
           return result;
@@ -923,14 +928,11 @@ function filterFixtureActivity(filters?: ActivityFilters): ActivityItem[] {
   if (filters?.search) {
     const q = filters.search.toLowerCase();
     result = result.filter(
-      (a) =>
-        a.title.toLowerCase().includes(q) ||
-        a.description.toLowerCase().includes(q)
+      (a) => a.title.toLowerCase().includes(q) || a.description.toLowerCase().includes(q)
     );
   }
   return result;
 }
-
 
 // ============================================================================
 // Omi Conversations & Integration Services
@@ -949,9 +951,7 @@ export async function getConversations(
       return await fetchBackendOnServer(
         `/conversations${qs}`,
         (raw) => {
-          const items = Array.isArray(raw)
-            ? raw
-            : ((raw as { items?: unknown[] })?.items ?? []);
+          const items = Array.isArray(raw) ? raw : ((raw as { items?: unknown[] })?.items ?? []);
           return transformBackendConversations(items);
         },
         options

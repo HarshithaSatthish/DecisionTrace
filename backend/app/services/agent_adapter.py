@@ -3,10 +3,11 @@
 import json
 import logging
 import re
+from datetime import date
 from typing import Any
 
 import httpx
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from app.core.config import settings
 from app.schemas.agent import (
@@ -14,8 +15,20 @@ from app.schemas.agent import (
     AgentInvocationPayload,
     ProposedAction,
 )
+from app.services.dates import resolve_due_date
 
 logger = logging.getLogger(__name__)
+
+_RETRYABLE_STATUS = {408, 425, 429, 500, 502, 503, 504}
+
+
+def _is_retryable_lyzr_error(exc: BaseException) -> bool:
+    """Retry transport errors and transient HTTP statuses (rate limits, 5xx); never 4xx auth/validation."""
+    if isinstance(exc, httpx.RequestError):
+        return True
+    if isinstance(exc, httpx.HTTPStatusError):
+        return exc.response.status_code in _RETRYABLE_STATUS
+    return False
 
 
 class AgentValidationError(Exception):
@@ -35,9 +48,7 @@ class LyzrAgentAdapter:
         payload: AgentInvocationPayload,
     ) -> AgentAnalysisResult:
         """Execute agent analysis via live Lyzr API or deterministic verification engine."""
-        valid_chunk_ids: set[str] = set(payload.new_evidence_ids) | {
-            h.chunk_id for h in payload.historical_evidence
-        }
+        valid_chunk_ids: set[str] = set(payload.new_evidence_ids) | {h.chunk_id for h in payload.historical_evidence}
 
         if self.api_key and self.manager_agent_id:
             try:
@@ -60,7 +71,7 @@ class LyzrAgentAdapter:
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=4),
-        retry=retry_if_exception_type(httpx.RequestError),
+        retry=retry_if_exception(_is_retryable_lyzr_error),
         reraise=True,
     )
     async def _call_lyzr_api(self, payload: AgentInvocationPayload) -> dict[str, Any]:
@@ -81,10 +92,16 @@ class LyzrAgentAdapter:
             '  "evidence_chunk_ids": string[],\n'
             '  "explanation": string,\n'
             '  "proposed_action": {"kind": "create_decision"|"request_decision_update"|'
-            '"request_clarification", "target_decision_id": null, "new_value": string, "topic": string} | null,\n'
+            '"request_clarification", "target_decision_id": null, "new_value": string, "topic": string, '
+            '"owner": string | null, "due_date": "YYYY-MM-DD" | null} | null,\n'
             '  "requires_human_approval": true | false\n'
             "}\n"
-            "4. Evidence IDs MUST strictly belong to new_evidence_ids or historical_evidence."
+            "4. Evidence IDs MUST strictly belong to new_evidence_ids or historical_evidence. Cite the "
+            "chunk_id from new_evidence whose excerpt states the decision.\n"
+            "5. owner = the named person who committed (e.g. 'Akshay will send...' -> 'Akshay'); "
+            "use null only if no person is named. Never use 'Team' or 'Unassigned'.\n"
+            "6. Resolve relative deadlines ('by Thursday', 'Friday', 'tomorrow') against conversation_date "
+            "and return due_date as YYYY-MM-DD on or after conversation_date; null if none stated."
         )
 
         if is_studio_v3:
@@ -111,7 +128,8 @@ class LyzrAgentAdapter:
                 "context": payload.model_dump(mode="json"),
             }
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        timeout = httpx.Timeout(settings.LYZR_TIMEOUT_SECONDS, connect=10.0)
+        async with httpx.AsyncClient(timeout=timeout) as client:
             resp = await client.post(url, headers=headers, json=body)
             resp.raise_for_status()
             data = resp.json()
@@ -137,7 +155,7 @@ class LyzrAgentAdapter:
                         lb = trimmed.rfind("}")
                         if fb != -1 and lb != -1 and lb > fb:
                             try:
-                                parsed_dict = json.loads(trimmed[fb:lb+1])
+                                parsed_dict = json.loads(trimmed[fb : lb + 1])
                             except json.JSONDecodeError:
                                 pass
             elif isinstance(raw_text, dict):
@@ -159,6 +177,7 @@ class LyzrAgentAdapter:
         valid_chunk_ids: set[str],
     ) -> AgentAnalysisResult:
         """Validate result against schema, drop hallucinated chunk IDs, enforce human approval."""
+        raw_data = self._normalize_raw(raw_data, payload)
         result = AgentAnalysisResult.model_validate(raw_data)
 
         # 1. Evidence Verification & Hallucination Guard
@@ -173,9 +192,7 @@ class LyzrAgentAdapter:
             )
             # If the finding cited fabricated evidence and has NO genuine evidence verified:
             if not verified_cids:
-                logger.error(
-                    "Rejecting finding: All cited evidence IDs were fabricated or unverified."
-                )
+                logger.error("Rejecting finding: All cited evidence IDs were fabricated or unverified.")
                 result.classification = "insufficient_evidence"
                 result.proposed_action = None
                 result.explanation = (
@@ -184,20 +201,77 @@ class LyzrAgentAdapter:
                 )
                 result.requires_human_approval = False
 
+        # Grounded fallback: agent cited nothing at all (no fabricated IDs either) but did
+        # classify a commitment -> attach this conversation's own chunk IDs (real, server-known).
+        # Never for updates to existing decisions: those must cite evidence explicitly (Codex guard).
+        if (
+            not raw_cids
+            and payload.new_evidence_ids
+            and result.classification != "insufficient_evidence"
+            and not (result.proposed_action and result.proposed_action.kind == "request_decision_update")
+        ):
+            verified_cids = [cid for cid in payload.new_evidence_ids if cid in valid_chunk_ids]
         result.evidence_chunk_ids = verified_cids
+
+        if result.proposed_action and not verified_cids:
+            result.classification = "insufficient_evidence"
+            result.proposed_action = None
+            result.requires_human_approval = False
+            result.explanation = "Rejected: Proposed mutation has no verified evidence."
+
+        # Bind updates to the version that was actually presented to the agent.
+        if result.proposed_action and result.proposed_action.kind == "request_decision_update":
+            matching = [d for d in payload.existing_decisions if d.decision_id == result.proposed_action.target_decision_id]
+            if not matching:
+                matching = [d for d in payload.existing_decisions if d.topic == result.topic_key]
+            if len(matching) != 1:
+                result.proposed_action = None
+                result.requires_human_approval = False
+                result.classification = "insufficient_evidence"
+                result.explanation = "Rejected: Decision update has no unambiguous existing target."
+            else:
+                result.proposed_action.target_decision_id = matching[0].decision_id
+                result.proposed_action.expected_version = matching[0].version
 
         # 2. Allowlisted action guard
         if result.proposed_action:
             if result.proposed_action.kind not in payload.allowed_actions:
-                logger.warning(
-                    f"Agent proposed non-allowlisted action '{result.proposed_action.kind}'. Rejecting action."
-                )
+                logger.warning(f"Agent proposed non-allowlisted action '{result.proposed_action.kind}'. Rejecting action.")
                 result.proposed_action = None
 
         # 3. Always enforce human approval for mutations
         if result.proposed_action is not None:
             result.requires_human_approval = True
         return result
+
+    @staticmethod
+    def _normalize_raw(raw_data: dict[str, Any], payload: AgentInvocationPayload) -> dict[str, Any]:
+        """Coerce owner/due_date so relative or placeholder values never fail validation."""
+        if not isinstance(raw_data, dict):
+            return raw_data
+        action = raw_data.get("proposed_action")
+        if isinstance(action, dict):
+            action = dict(action)
+            owner = action.get("owner")
+            if isinstance(owner, str) and owner.strip().lower() in {"", "team", "unassigned", "unknown", "none", "n/a"}:
+                action["owner"] = None
+            anchor = date.today()
+            if payload.conversation_date:
+                try:
+                    anchor = date.fromisoformat(payload.conversation_date[:10])
+                except ValueError:
+                    pass
+            agent_due = resolve_due_date(action.get("due_date"), anchor)
+            # The stated deadline phrase in the commitment text ("on Friday", "by Thursday") is
+            # resolved deterministically server-side and wins over the agent's date: live Lyzr
+            # returned the conversation date itself for "launch on Friday".
+            stated_due = resolve_due_date(str(action.get("new_value") or ""), anchor)
+            due = stated_due or agent_due
+            if due and due[:10] < anchor.isoformat():
+                due = None  # deadlines before the conversation are never valid
+            action["due_date"] = due
+            raw_data = {**raw_data, "proposed_action": action}
+        return raw_data
 
     def _deterministic_analyze(
         self,
@@ -209,17 +283,11 @@ class LyzrAgentAdapter:
 
         # Check for historical evidence indicating an existing commitment
         historical_excerpts = [h.excerpt.lower() for h in payload.historical_evidence]
-        has_historical_commitment = (
-            len(historical_excerpts) > 0 or len(payload.existing_decisions) > 0
-        )
+        has_historical_commitment = len(historical_excerpts) > 0 or len(payload.existing_decisions) > 0
 
         # Topic detection heuristics
         topic_key = "general_commitment"
-        if (
-            "review" in transcript_lower
-            or "meeting" in transcript_lower
-            or "prototype" in transcript_lower
-        ):
+        if "review" in transcript_lower or "meeting" in transcript_lower or "prototype" in transcript_lower:
             topic_key = "prototype_review"
         elif "deploy" in transcript_lower or "release" in transcript_lower:
             topic_key = "deployment_schedule"
@@ -250,9 +318,7 @@ class LyzrAgentAdapter:
             elif payload.historical_evidence:
                 previous_val = payload.historical_evidence[0].excerpt
 
-            target_decision_id = (
-                payload.existing_decisions[0].decision_id if payload.existing_decisions else None
-            )
+            target_decision_id = payload.existing_decisions[0].decision_id if payload.existing_decisions else None
 
             # Extract new value if present
             new_val = payload.new_transcript
@@ -281,8 +347,7 @@ class LyzrAgentAdapter:
             )
 
         elif not has_historical_commitment and any(
-            w in transcript_lower
-            for w in ["will", "is scheduled", "agreed", "decided", "at", "due", "let's"]
+            w in transcript_lower for w in ["will", "is scheduled", "agreed", "decided", "at", "due", "let's"]
         ):
             return AgentAnalysisResult(
                 classification="new_commitment",
@@ -300,15 +365,11 @@ class LyzrAgentAdapter:
                 requires_human_approval=True,
             )
 
-        elif has_historical_commitment and any(
-            w in transcript_lower for w in ["disagree", "conflict", "wait no"]
-        ):
+        elif has_historical_commitment and any(w in transcript_lower for w in ["disagree", "conflict", "wait no"]):
             return AgentAnalysisResult(
                 classification="possible_conflict",
                 topic_key=topic_key,
-                previous_value=payload.historical_evidence[0].excerpt
-                if payload.historical_evidence
-                else "Unknown",
+                previous_value=payload.historical_evidence[0].excerpt if payload.historical_evidence else "Unknown",
                 new_value=payload.new_transcript,
                 evidence_chunk_ids=cited_chunks,
                 explanation="Ambiguous conflict detected between historical decision and current statement.",

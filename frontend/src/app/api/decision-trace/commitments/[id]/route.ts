@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyDecisionTraceAuth } from '@/lib/decision-trace-auth';
+import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,20 +26,39 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     );
   }
 
-  // DecisionTrace Governance Policy:
-  // Direct arbitrary mutation of commitment/decision states without an approved Action Payload
-  // and execution key violates the Zero-Drift human-in-the-loop guarantee.
-  // The FastAPI backend intentionally exposes only GET /decisions and GET /decisions/{id},
-  // with mutations strictly routed through POST /api/v1/approvals/{id}/approve.
-  return NextResponse.json(
-    {
-      success: false,
-      error:
-        'Direct unapproved commitment mutations are prevented by DecisionTrace governance policy. Changes must be proposed by an analysis agent and confirmed through the Approvals workflow with a valid execution key.',
-      code: 'UNAPPROVED_MUTATION_PREVENTED',
-      commitmentId: id,
-      governanceRule: 'ZERO_AUTONOMOUS_DRIFT_HUMAN_IN_THE_LOOP'
-    },
-    { status: 405 }
-  );
+  const payload = z
+    .object({ status: z.enum(['backlog', 'in_progress', 'blocked', 'completed']) })
+    .safeParse(await request.json().catch(() => null));
+  if (!z.uuid().safeParse(id).success || !payload.success)
+    return NextResponse.json({ error: 'Invalid task ID or status.' }, { status: 400 });
+  try {
+    // This explicit human action changes task progress. Authoritative decision changes remain approval-gated.
+    const result = await fetch(`${backendUrl}/commitments/${id}`, {
+      method: 'PATCH',
+      headers: authResult.headers,
+      body: JSON.stringify(payload.data),
+      signal: AbortSignal.timeout(8000)
+    });
+    const data = await result.json();
+    if (!result.ok) return NextResponse.json(data, { status: result.status });
+    return NextResponse.json({
+      id: data.id,
+      title: data.title,
+      task: data.task,
+      owner: data.owner || 'Unassigned',
+      deadline: data.due_date || 'Not specified',
+      status: data.status,
+      priority: 'medium',
+      relatedDecisionId: data.decision_id || '',
+      relatedDecisionTitle: data.title,
+      evidence: [],
+      overdue: data.overdue,
+      readOnly: false
+    });
+  } catch {
+    return NextResponse.json(
+      { error: 'Task status could not be saved. Please retry.' },
+      { status: 502 }
+    );
+  }
 }

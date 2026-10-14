@@ -53,7 +53,7 @@ def get_embedding_model() -> TextEmbedding:
     global _embedding_model
     if _embedding_model is None:
         logger.info(f"Loading FastEmbed model: {settings.EMBEDDING_MODEL}")
-        _embedding_model = TextEmbedding(model_name=settings.EMBEDDING_MODEL)
+        _embedding_model = TextEmbedding(model_name=settings.EMBEDDING_MODEL, cache_dir=settings.FASTEMBED_CACHE_PATH)
     return _embedding_model
 
 
@@ -73,14 +73,19 @@ def ensure_collection_exists(client: QdrantClient | None = None) -> None:
                     distance=qmodels.Distance.COSINE,
                 ),
             )
-            # Create payload index for fast user_id multitenant filtering
-            qc.create_payload_index(
-                collection_name=collection_name,
-                field_name="user_id",
-                field_schema=qmodels.PayloadSchemaType.KEYWORD,
-            )
+        info = qc.get_collection(collection_name)
+        vectors = info.config.params.vectors
+        if not isinstance(vectors, qmodels.VectorParams) or vectors.size != settings.EMBEDDING_DIMENSION:
+            raise RuntimeError("Qdrant collection dimensions do not match the configured embedding model")
+        # Qdrant Cloud requires indexes for both fields used by the retrieval filter.
+        # Repair existing collections as well as newly created ones.
+        for field in ("user_id", "conversation_id"):
+            if field not in info.payload_schema:
+                qc.create_payload_index(
+                    collection_name=collection_name, field_name=field, field_schema=qmodels.PayloadSchemaType.KEYWORD, wait=True
+                )
     except Exception as e:
-        logger.warning(f"Could not verify Qdrant collection: {e}")
+        raise RuntimeError("Could not verify Qdrant collection and required payload indexes") from e
 
 
 def generate_embeddings(texts: list[str]) -> list[list[float]]:
@@ -123,6 +128,4 @@ def upsert_chunks(chunks: list[ConversationChunk], client: QdrantClient | None =
         collection_name=settings.QDRANT_COLLECTION,
         points=points,
     )
-    logger.info(
-        f"Upserted {len(points)} chunks into Qdrant collection '{settings.QDRANT_COLLECTION}'"
-    )
+    logger.info(f"Upserted {len(points)} chunks into Qdrant collection '{settings.QDRANT_COLLECTION}'")

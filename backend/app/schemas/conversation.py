@@ -2,17 +2,17 @@
 
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Annotated, Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
 
 
 class TranscriptSegment(BaseModel):
-    text: str
+    text: str = Field(max_length=50000)
     speaker: str | None = "SPEAKER_00"
     is_user: bool | None = False
-    start: float | None = 0.0
-    end: float | None = 0.0
+    start: float | None = Field(default=0.0, ge=0, allow_inf_nan=False)
+    end: float | None = Field(default=0.0, ge=0, allow_inf_nan=False)
 
 
 class StructuredMetadata(BaseModel):
@@ -23,11 +23,11 @@ class StructuredMetadata(BaseModel):
 
 
 class OmiMemoryCreatedWebhook(BaseModel):
-    id: str = Field(description="Unique source ID of memory/conversation from Omi")
+    id: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
     created_at: datetime | None = None
     started_at: datetime | None = None
     finished_at: datetime | None = None
-    transcript_segments: list[TranscriptSegment] = Field(default_factory=list)
+    transcript_segments: list[TranscriptSegment] = Field(default_factory=list, max_length=500)
     structured: StructuredMetadata | None = None
     discarded: bool | None = False
 

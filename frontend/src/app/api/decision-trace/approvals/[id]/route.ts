@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyDecisionTraceAuth } from '@/lib/decision-trace-auth';
+import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,27 +11,41 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   const { id } = await params;
-  const body = await request.json().catch(() => ({}));
+  const parsed = z
+    .object({
+      action: z.enum(['approve', 'reject', 'clarify']),
+      rationale: z.string().max(4000).optional(),
+      execution_key: z.string().max(256).optional(),
+      executionKey: z.string().max(256).optional()
+    })
+    .safeParse(await request.json().catch(() => null));
+  if (!z.uuid().safeParse(id).success || !parsed.success) {
+    return NextResponse.json(
+      {
+        error: 'A valid approval ID and explicit approve, reject, or clarify action are required.'
+      },
+      { status: 400 }
+    );
+  }
+  const body = parsed.data;
   const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
 
   // 1. If backend URL is configured, forward request to FastAPI with Clerk authentication
   if (backendUrl) {
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const signal = AbortSignal.timeout(8000);
 
-      const action = body.action || 'approve';
+      const action = body.action;
       let targetPath = '';
       let targetPayload: Record<string, unknown> = {};
 
       if (action === 'reject') {
         targetPath = `${backendUrl}/approvals/${id}/reject`;
-        targetPayload = { reason: body.rationale || body.reason || 'Rejected by reviewer' };
+        targetPayload = { reason: body.rationale || 'Rejected by reviewer' };
       } else if (action === 'clarify') {
         targetPath = `${backendUrl}/approvals/${id}/clarify`;
         targetPayload = {
-          clarification_request:
-            body.rationale || body.clarification_request || 'Clarification requested'
+          clarification_request: body.rationale || 'Clarification requested'
         };
       } else {
         // Approve: get execution_key if not supplied
@@ -39,20 +54,32 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           try {
             const detailRes = await fetch(`${backendUrl}/approvals/${id}`, {
               headers: authResult.headers,
-              cache: 'no-store'
+              cache: 'no-store',
+              signal
             });
             if (detailRes.ok) {
               const detailData = await detailRes.json();
               execKey = detailData.execution_key;
             }
           } catch {
-            // Non-fatal, try without or proceed
+            return NextResponse.json(
+              { error: 'Unable to load approval for review. Please retry.' },
+              { status: 502 }
+            );
           }
+        }
+        if (!execKey) {
+          return NextResponse.json(
+            {
+              error: 'Approval execution key is unavailable. Reload the request before approving.'
+            },
+            { status: 409 }
+          );
         }
         targetPath = `${backendUrl}/approvals/${id}/approve`;
         targetPayload = {
-          execution_key: execKey || 'exec_key_auto',
-          note: body.rationale || body.note || 'Confirmed by human reviewer'
+          execution_key: execKey,
+          note: body.rationale || 'Confirmed by human reviewer'
         };
       }
 
@@ -60,10 +87,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         method: 'POST',
         headers: authResult.headers,
         body: JSON.stringify(targetPayload),
-        signal: controller.signal
+        signal
       });
-
-      clearTimeout(timeoutId);
 
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
@@ -107,9 +132,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     {
       success: false,
       error:
-        'Backend service unreachable: FastAPI endpoint /api/v1/approvals/' +
+        'Backend service unreachable: Person 1 FastAPI endpoint /api/v1/approvals/' +
         id +
-        '/approve is pending deployment. Approval actions are halted to prevent unverified mutations.',
+        '/action is pending deployment. Approval actions are halted to prevent unverified mutations.',
       code: 'BACKEND_PENDING_DEPLOYMENT',
       contractReference: 'docs/backend-integration-contract.md'
     },

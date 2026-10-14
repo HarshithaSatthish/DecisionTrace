@@ -7,10 +7,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, col, func, select
 
 from app.core.security import verify_clerk_token
-from app.db.models import Decision
+from app.db.models import ConversationChunk, Decision, DecisionEvidence
 from app.db.repository import get_or_create_user
 from app.db.session import get_session
-from app.schemas.decision import DecisionDetailRead, DecisionListResponse, DecisionRead
+from app.schemas.decision import DecisionDetailRead, DecisionEvidenceItem, DecisionListResponse, DecisionRead
+from app.schemas.finding import EvidenceItem
 
 router = APIRouter(prefix="/decisions", tags=["Decisions"])
 
@@ -36,12 +37,67 @@ def list_decisions(
         count_query = count_query.where(Decision.state == status)
 
     total = session.exec(count_query).one()
-    results = session.exec(
-        query.order_by(col(Decision.updated_at).desc()).offset(offset).limit(limit)
-    ).all()
+    results = session.exec(query.order_by(col(Decision.updated_at).desc()).offset(offset).limit(limit)).all()
 
-    items = [DecisionRead.model_validate(d) for d in results]
+    evidence_by_id: dict[uuid.UUID, list[EvidenceItem]] = {}
+    if results:
+        links = session.exec(
+            select(DecisionEvidence.decision_id, ConversationChunk)
+            .join(ConversationChunk, ConversationChunk.id == DecisionEvidence.chunk_id)
+            .where(DecisionEvidence.decision_id.in_([d.id for d in results]), ConversationChunk.user_id == user.id)
+        ).all()
+        for decision_id, chunk in links:
+            evidence_by_id.setdefault(decision_id, []).append(
+                EvidenceItem(
+                    chunk_id=chunk.id, excerpt=chunk.excerpt, conversation_id=chunk.conversation_id, source_time=chunk.source_time
+                )
+            )
+    items = [
+        DecisionRead.model_validate(d).model_copy(
+            update={
+                "source_evidence": evidence_by_id.get(d.id, []),
+                # PR #15 contract: same tenant-scoped excerpts under `evidence`.
+                "evidence": [
+                    DecisionEvidenceItem(
+                        chunk_id=str(e.chunk_id), conversation_id=e.conversation_id, excerpt=e.excerpt, source_time=e.source_time
+                    )
+                    for e in evidence_by_id.get(d.id, [])
+                ],
+            }
+        )
+        for d in results
+    ]
     return DecisionListResponse(items=items, total=total, limit=limit, offset=offset)
+
+
+def _load_evidence(session: Session, user_id, decision_ids: list) -> dict:
+    """Evidence excerpts per decision, joined only to chunks owned by the same user."""
+    if not decision_ids:
+        return {}
+    rows = session.exec(
+        select(DecisionEvidence, ConversationChunk)
+        .join(ConversationChunk, ConversationChunk.id == DecisionEvidence.chunk_id)
+        .where(
+            col(DecisionEvidence.decision_id).in_(decision_ids),
+            ConversationChunk.user_id == user_id,
+        )
+    ).all()
+    out: dict = {}
+    seen: set = set()
+    for ev, chunk in rows:
+        key = (ev.decision_id, chunk.id)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.setdefault(ev.decision_id, []).append(
+            DecisionEvidenceItem(
+                chunk_id=chunk.id,
+                conversation_id=chunk.conversation_id,
+                excerpt=chunk.excerpt,
+                source_time=chunk.source_time,
+            )
+        )
+    return out
 
 
 @router.get("/{decision_id}", response_model=DecisionDetailRead)
@@ -57,15 +113,16 @@ def get_decision_detail(
     user = get_or_create_user(session, clerk_id)
 
     decision = session.exec(
-        select(Decision)
-        .options(selectinload(Decision.evidence))
-        .where(Decision.id == decision_id, Decision.user_id == user.id)
+        select(Decision).options(selectinload(Decision.evidence)).where(Decision.id == decision_id, Decision.user_id == user.id)
     ).first()
 
     if not decision:
         raise HTTPException(status_code=404, detail="Decision not found")
 
     evidence_chunk_ids = [e.chunk_id for e in decision.evidence]
+    chunks = session.exec(
+        select(ConversationChunk).where(ConversationChunk.id.in_(evidence_chunk_ids), ConversationChunk.user_id == user.id)
+    ).all()
 
     return DecisionDetailRead(
         id=decision.id,
@@ -77,6 +134,12 @@ def get_decision_detail(
         version=decision.version,
         source_provenance=decision.source_provenance,
         evidence_chunk_ids=evidence_chunk_ids,
+        source_evidence=[
+            EvidenceItem(
+                chunk_id=chunk.id, excerpt=chunk.excerpt, conversation_id=chunk.conversation_id, source_time=chunk.source_time
+            )
+            for chunk in chunks
+        ],
         created_at=decision.created_at,
         updated_at=decision.updated_at,
     )

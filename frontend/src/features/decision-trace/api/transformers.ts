@@ -1,3 +1,5 @@
+import { mapBackendEvidence } from '@/lib/evidence-mapping';
+import { mapAuditActionToActivityType } from '@/lib/activity-mapping';
 import {
   Decision,
   Commitment,
@@ -25,6 +27,10 @@ interface BackendOverviewRaw {
   pending_approvals?: number;
   pendingApprovalsCount?: number;
   recent_findings?: number;
+  detected_conflicts?: number;
+  open_commitments?: number;
+  overdue_commitments?: number;
+  overdueCommitmentsCount?: number;
   detectedConflictsCount?: number;
   openCommitmentsCount?: number;
   attentionItems?: AttentionItem[];
@@ -57,6 +63,7 @@ interface BackendDecisionRaw {
   };
   source_event_id?: string;
   evidence?: EvidenceReference[];
+  source_evidence?: { chunk_id: string; excerpt: string; source_time?: string }[];
   confidence?: number;
   confidenceLevel?: ConfidenceLevel;
   relatedCommitmentIds?: string[];
@@ -79,10 +86,15 @@ interface BackendCommitmentRaw {
   priority?: 'low' | 'medium' | 'high' | 'critical';
   evidence?: EvidenceReference[];
   progressPercentage?: number;
+  decision_id?: string;
+  readOnly?: boolean;
+  overdue?: boolean;
+  needsFollowUp?: boolean;
 }
 
 interface BackendFindingRaw {
   id: string | number;
+  conversation_id?: string;
   topic_key?: string;
   classification?: string;
   severity?: string;
@@ -96,6 +108,7 @@ interface BackendFindingRaw {
   newerDecision?: Conflict['newerDecision'];
   evidence?: Array<{
     chunk_id?: string;
+    conversation_id?: string;
     source_time?: string;
     excerpt?: string;
     vectorSimilarity?: number;
@@ -115,6 +128,8 @@ interface BackendApprovalRaw {
     new_value?: string;
     kind?: string;
     impact?: string;
+    owner?: string;
+    due_date?: string;
   };
   execution_key?: string;
   finding_id?: string | number;
@@ -139,8 +154,8 @@ interface BackendActivityRaw {
 export function transformBackendOverview(raw: BackendOverviewRaw = {}): DashboardMetrics {
   const activeCount = Number(raw.active_decisions ?? raw.activeDecisionsCount ?? 0);
   const pendingCount = Number(raw.pending_approvals ?? raw.pendingApprovalsCount ?? 0);
-  const findingsCount = Number(raw.recent_findings ?? raw.detectedConflictsCount ?? 0);
-  const openCommitments = Number(raw.openCommitmentsCount ?? activeCount);
+  const findingsCount = Number(raw.detected_conflicts ?? raw.detectedConflictsCount ?? 0);
+  const openCommitments = Number(raw.open_commitments ?? raw.openCommitmentsCount ?? activeCount);
 
   const attentionItems: AttentionItem[] = [];
   if (Array.isArray(raw.attentionItems) && raw.attentionItems.length > 0) {
@@ -170,15 +185,14 @@ export function transformBackendOverview(raw: BackendOverviewRaw = {}): Dashboar
 
   // Honest trends: empty array when unavailable, never fabricated
   const decisionTrend =
-    Array.isArray(raw.decisionTrend) && raw.decisionTrend.length > 0
-      ? raw.decisionTrend
-      : [];
+    Array.isArray(raw.decisionTrend) && raw.decisionTrend.length > 0 ? raw.decisionTrend : [];
 
   return {
     activeDecisionsCount: activeCount,
     openCommitmentsCount: openCommitments,
     detectedConflictsCount: findingsCount,
     pendingApprovalsCount: pendingCount,
+    overdueCommitmentsCount: Number(raw.overdue_commitments ?? raw.overdueCommitmentsCount ?? 0),
     decisionTrend,
     attentionItems,
     recentActivity: Array.isArray(raw.recentActivity) ? raw.recentActivity : [],
@@ -218,11 +232,12 @@ export function transformBackendDecisions(items: unknown[]): Decision[] {
       title: d.title || topicTitle,
       summary: d.summary || commitmentText,
       whatWasDecided: d.whatWasDecided || commitmentText,
-      participants: Array.isArray(d.participants) && d.participants.length > 0
-        ? d.participants
-        : d.owner
-          ? [d.owner]
-          : [],
+      participants:
+        Array.isArray(d.participants) && d.participants.length > 0
+          ? d.participants
+          : d.owner
+            ? [d.owner]
+            : [],
       createdAt: createdTime,
       updatedAt: updatedTime,
       status: (d.status || (d.state === 'active' ? 'active' : 'superseded')) as DecisionStatus,
@@ -232,7 +247,19 @@ export function transformBackendDecisions(items: unknown[]): Decision[] {
         channel: 'Voice (Omi)',
         timestamp: updatedTime || createdTime || ''
       },
-      evidence: Array.isArray(d.evidence) ? d.evidence : [],
+      // Prefer Codex source_evidence; fall back to PR #15 `evidence` (raw backend excerpts or
+      // already-mapped references), normalised by mapBackendEvidence.
+      evidence:
+        d.source_evidence && d.source_evidence.length > 0
+          ? d.source_evidence.map((item) => ({
+              id: item.chunk_id,
+              sourceType: 'meeting' as const,
+              sourceTitle: 'Omi conversation',
+              speakerOrAuthor: 'Unattributed',
+              timestamp: item.source_time || '',
+              quote: item.excerpt
+            }))
+          : mapBackendEvidence(d.evidence, topicTitle),
       confidence: confidenceVal,
       confidenceLevel: confidenceLevelVal,
       relatedCommitmentIds: d.relatedCommitmentIds || [String(d.id)],
@@ -255,8 +282,7 @@ export function transformBackendDecisionsToCommitments(items: unknown[]): Commit
     const commitmentText = d.current_commitment || d.task || topicTitle;
 
     // Honest progress handling: only set when provided by backend
-    const progressVal =
-      d.progressPercentage != null ? Number(d.progressPercentage) : undefined;
+    const progressVal = d.progressPercentage != null ? Number(d.progressPercentage) : undefined;
 
     return {
       id: String(d.id),
@@ -265,12 +291,16 @@ export function transformBackendDecisionsToCommitments(items: unknown[]): Commit
       owner: d.owner || '',
       ownerAvatar: d.ownerAvatar,
       deadline: d.due_date || d.deadline || '',
-      status: (d.status || (d.state === 'active' ? 'in_progress' : 'completed')) as CommitmentStatus,
+      status: (d.status ||
+        (d.state === 'active' ? 'in_progress' : 'completed')) as CommitmentStatus,
       priority: d.priority || undefined,
-      relatedDecisionId: String(d.id),
+      relatedDecisionId: d.decision_id || String(d.id),
       relatedDecisionTitle: topicTitle,
-      evidence: Array.isArray(d.evidence) ? d.evidence : [],
-      progressPercentage: progressVal
+      evidence: mapBackendEvidence(d.evidence, topicTitle),
+      progressPercentage: progressVal,
+      readOnly: d.readOnly ?? false,
+      overdue: d.overdue ?? false,
+      needsFollowUp: d.needsFollowUp ?? false
     };
   });
 }
@@ -295,8 +325,14 @@ export function transformBackendFindingsToConflicts(items: unknown[]): Conflict[
       const topic = (f.topic_key || 'Commitment')
         .replace(/_/g, ' ')
         .replace(/\b\w/g, (c: string) => c.toUpperCase());
-      const ev1 = f.evidence?.[0];
-      const ev2 = f.evidence?.[1] || ev1;
+      const ev1 = f.conversation_id
+        ? f.evidence?.find(
+            (item) => item.conversation_id && item.conversation_id !== f.conversation_id
+          )
+        : f.evidence?.[0];
+      const ev2 = f.conversation_id
+        ? f.evidence?.find((item) => item.conversation_id === f.conversation_id)
+        : f.evidence?.[1];
 
       // Honest vector similarity: only set when provided by Qdrant/backend
       const sim1 =
@@ -319,11 +355,14 @@ export function transformBackendFindingsToConflicts(items: unknown[]): Conflict[
       return {
         id: String(f.id),
         title: `Contradiction: ${topic}`,
-        severity: ((f.severity as ImpactLevel) || (f.confidence === 'high' ? 'high' : 'medium')) as ImpactLevel,
+        severity: ((f.severity as ImpactLevel) ||
+          (f.confidence === 'high' ? 'high' : 'medium')) as ImpactLevel,
         explanation:
           f.explanation ||
           `Contradiction between historical agreement and new statement on ${topic}.`,
-        status: (f.status === 'pending_approval' ? 'unresolved' : 'resolved') as ConflictResolutionStatus,
+        status: (f.status === 'pending_approval'
+          ? 'unresolved'
+          : 'resolved') as ConflictResolutionStatus,
         detectedAt: detectedTime,
         previousDecision: {
           id: `prev-${f.id}`,
@@ -335,9 +374,9 @@ export function transformBackendFindingsToConflicts(items: unknown[]): Conflict[
             id: ev1?.chunk_id || 'ev-1',
             sourceType: 'meeting',
             sourceTitle: 'Prior Conversation',
-            speakerOrAuthor: 'Team Member',
+            speakerOrAuthor: 'Unattributed',
             timestamp: prevTime,
-            quote: ev1?.excerpt || f.previous_value || 'Original agreement quote',
+            quote: ev1?.excerpt || '',
             vectorSimilarity: sim1
           }
         },
@@ -351,9 +390,9 @@ export function transformBackendFindingsToConflicts(items: unknown[]): Conflict[
             id: ev2?.chunk_id || 'ev-2',
             sourceType: 'meeting',
             sourceTitle: 'Recent Meeting',
-            speakerOrAuthor: 'Team Member',
+            speakerOrAuthor: 'Unattributed',
             timestamp: newerTime,
-            quote: ev2?.excerpt || f.new_value || 'New statement quote',
+            quote: ev2?.excerpt || '',
             vectorSimilarity: sim2
           }
         }
@@ -378,12 +417,22 @@ export function transformBackendApprovals(items: unknown[]): ApprovalRequest[] {
       actionType:
         r.action_payload?.kind === 'request_decision_update'
           ? 'supersede_decision'
-          : 'override_conflict',
+          : r.action_payload?.kind === 'create_decision'
+            ? 'create_decision'
+            : r.action_payload?.kind === 'create_task'
+              ? 'create_task'
+              : 'request_clarification',
       proposedBy: `Lyzr Autonomous Guardian (${r.requester || 'Agent'})`,
       requestedAt: r.created_at || '',
-      status: (r.status === 'pending' ? 'pending' : r.status === 'approved' ? 'approved' : 'rejected') as ApprovalStatus,
+      status: (r.status === 'pending'
+        ? 'pending'
+        : r.status === 'approved'
+          ? 'approved'
+          : r.status === 'clarified'
+            ? 'clarified'
+            : 'rejected') as ApprovalStatus,
       impactLevel: ((r.action_payload?.impact as ImpactLevel) || 'medium') as ImpactLevel,
-      exactActionPreview: `Execute atomic mutation on decision '${r.action_payload?.topic || topic}' -> '${r.action_payload?.new_value || ''}' (Key: ${r.execution_key || 'verified'})`,
+      exactActionPreview: `${(r.action_payload?.kind || 'request clarification').replaceAll('_', ' ')}: '${r.action_payload?.topic || topic}' -> '${r.action_payload?.new_value || ''}'. Owner: ${r.action_payload?.owner || 'not specified'}. Due: ${r.action_payload?.due_date || 'not specified'}.`,
       targetEntityId: String(r.finding_id || r.id),
       targetEntityType: 'decision',
       evidence: r.evidence || []
@@ -398,14 +447,7 @@ export function transformBackendActivity(items: unknown[]): ActivityItem[] {
     if (a.title && a.description && a.type) {
       return a as ActivityItem;
     }
-    let actType: ActivityType = 'conversation_processed';
-    if (a.action?.includes('decision')) actType = 'decision_extracted';
-    else if (a.action?.includes('conflict') || a.action?.includes('finding'))
-      actType = 'conflict_detected';
-    else if (a.action?.includes('approve') || a.action?.includes('executed'))
-      actType = 'approval_executed';
-    else if (a.action?.includes('request')) actType = 'approval_requested';
-    else if (a.action?.includes('update')) actType = 'commitment_updated';
+    const actType: ActivityType = mapAuditActionToActivityType(a.action, a.entity_type);
 
     const actionLabel = (a.action || 'event').replace(/_/g, ' ');
     return {
@@ -476,9 +518,7 @@ export function transformBackendConversationDetail(raw: unknown): OmiConversatio
     overview: c.overview,
     transcriptPreview:
       c.transcript_preview ||
-      (c.normalized_transcript
-        ? c.normalized_transcript.slice(0, 140) + '...'
-        : ''),
+      (c.normalized_transcript ? c.normalized_transcript.slice(0, 140) + '...' : ''),
     normalizedTranscript: c.normalized_transcript || '',
     sourceTime: c.source_time || '',
     createdAt: c.created_at || '',

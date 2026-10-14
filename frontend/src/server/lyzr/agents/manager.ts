@@ -9,6 +9,7 @@ import {
   extractJsonFromResponse
 } from '../client';
 import { getLyzrConfig, isLyzrPreviewAllowed } from '../config';
+import { createHash } from 'node:crypto';
 import { buildManagerUserPrompt } from '../instructions/manager-agent';
 import type {
   AnalysisInput,
@@ -57,12 +58,26 @@ export async function orchestrateDecisionTraceAnalysis(
   options?: ManagerOptions
 ): Promise<ManagerAnalysisResult> {
   const config = getLyzrConfig();
-  const tenantScope =
-    input.orgId || options?.orgId || input.userId || options?.userId || 'system-global';
-  const existingIds = (input.existingDecisions || []).map((d) => d.id).join(',');
-  const sourceScope = `${input.sourceTitle || ''}:${input.channel || ''}`;
-  const configScope = `${config.extractorAgentId || ''}:${config.conflictAgentId || ''}:${config.plannerAgentId || ''}:${config.managerAgentId || ''}`;
-  const cacheKey = `${tenantScope}::${configScope}::${sourceScope}::${existingIds}::${input.conversationText.trim()}`;
+  const cacheKey = JSON.stringify({
+    orgId: options?.orgId || input.orgId,
+    userId: options?.userId || input.userId,
+    credential: createHash('sha256')
+      .update(config.apiKey || '')
+      .digest('hex'),
+    previewAllowed: isLyzrPreviewAllowed(),
+    config: [
+      config.baseUrl,
+      config.extractorAgentId,
+      config.conflictAgentId,
+      config.plannerAgentId,
+      config.managerAgentId
+    ],
+    sourceTitle: input.sourceTitle,
+    channel: input.channel,
+    timestamp: input.timestamp,
+    existingDecisions: input.existingDecisions || [],
+    conversationText: input.conversationText.trim()
+  });
 
   if (!options?.skipCache && input.conversationText.trim()) {
     const cached = ANALYSIS_CACHE.get(cacheKey);
@@ -181,7 +196,7 @@ export async function orchestrateDecisionTraceAnalysis(
       }
       console.warn(
         'Lyzr Manager Agent chat inference failed, using deterministic merge fallback:',
-        err
+        err instanceof Error ? err.name : 'Unknown provider error'
       );
     }
   }
@@ -337,8 +352,7 @@ function synthesizeAnalysisResult(
         channelOrLocation: channel,
         speakerOrAuthor: rd.speaker,
         timestamp,
-        quote: rd.evidenceQuote,
-        vectorSimilarity: 0.94
+        quote: rd.evidenceQuote
       }
     ];
 
@@ -408,8 +422,7 @@ function synthesizeAnalysisResult(
         channelOrLocation: channel,
         speakerOrAuthor: rc.speaker,
         timestamp,
-        quote: rc.evidenceQuote,
-        vectorSimilarity: 0.92
+        quote: rc.evidenceQuote
       }
     ];
 
@@ -452,8 +465,7 @@ function synthesizeAnalysisResult(
             sourceTitle: rconf.priorDecision.source,
             speakerOrAuthor: rconf.priorDecision.speaker,
             timestamp: rconf.priorDecision.timestamp || timestamp,
-            quote: rconf.priorDecision.evidenceQuote,
-            vectorSimilarity: 0.96
+            quote: rconf.priorDecision.evidenceQuote
           }
         },
         newerDecision: {
@@ -469,8 +481,7 @@ function synthesizeAnalysisResult(
             channelOrLocation: channel,
             speakerOrAuthor: rconf.newDecision.speaker,
             timestamp,
-            quote: rconf.newDecision.evidenceQuote,
-            vectorSimilarity: 0.93
+            quote: rconf.newDecision.evidenceQuote
           }
         }
       });

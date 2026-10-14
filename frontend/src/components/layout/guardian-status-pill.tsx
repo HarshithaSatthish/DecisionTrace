@@ -21,7 +21,10 @@ export default function GuardianStatusPill() {
 
     async function checkHealth() {
       try {
-        const res = await fetch('/api/decision-trace/health');
+        const res = await fetch('/api/decision-trace/health', {
+          cache: 'no-store',
+          signal: AbortSignal.timeout(8000)
+        });
         if (res.ok) {
           const data = await res.json();
           if (isMounted) {
@@ -45,7 +48,7 @@ export default function GuardianStatusPill() {
           setHealth({
             status: 'disconnected',
             connected: false,
-            message: 'Network error querying guardian health'
+            message: 'Guardian health probe timed out or failed'
           });
         }
       }

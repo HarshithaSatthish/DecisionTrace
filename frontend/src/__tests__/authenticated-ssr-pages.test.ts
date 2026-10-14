@@ -135,7 +135,7 @@ describe('Authenticated SSR Pages Real Server-Side Data-Fetching', () => {
     }
   });
 
-  test('CommitmentsPage renders decision-derived commitments using genuine backend contract', async () => {
+  test('CommitmentsPage renders owned tasks using the commitments backend contract', async () => {
     const capturedRequests: { url: string; headers: Record<string, string> }[] = [];
 
     globalThis.fetch = mock((url: unknown, init?: unknown) => {
@@ -174,7 +174,7 @@ describe('Authenticated SSR Pages Real Server-Side Data-Fetching', () => {
 
     expect(pageElement).toBeDefined();
     expect(React.isValidElement(pageElement)).toBe(true);
-    expect(capturedRequests.some((r) => r.url.includes('/decisions'))).toBe(true);
+    expect(capturedRequests.some((r) => r.url.includes('/commitments'))).toBe(true);
     expect(capturedRequests[0].headers['X-User-Id']).toBe('user_alice');
   });
 

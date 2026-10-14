@@ -5,6 +5,21 @@
 
 export type SourceType = 'slack' | 'teams' | 'meeting' | 'document' | 'email';
 
+export interface AgentInsight {
+  id: string;
+  topic_key: string | null;
+  classification: string;
+  explanation: string;
+  status: string;
+  evidence: { chunk_id: string; excerpt: string }[];
+}
+
+export interface IntegrationStatus {
+  status: string;
+  connected: boolean;
+  details?: { readiness?: { dependencies?: Record<string, string> } };
+}
+
 export interface EvidenceReference {
   id: string;
   sourceType: SourceType;
@@ -63,6 +78,9 @@ export interface Commitment {
   evidence: EvidenceReference[];
   progressPercentage?: number;
   blockerNotes?: string;
+  readOnly?: boolean;
+  overdue?: boolean;
+  needsFollowUp?: boolean;
 }
 
 export type ConflictResolutionStatus = 'unresolved' | 'resolved' | 'escalated' | 'dismissed';
@@ -90,8 +108,11 @@ export interface Conflict {
   newerDecision: ConflictDecisionSide;
 }
 
-export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'clarified';
 export type ApprovalActionType =
+  | 'create_decision'
+  | 'create_task'
+  | 'request_clarification'
   | 'supersede_decision'
   | 'reassign_commitment'
   | 'override_conflict'
@@ -147,6 +168,7 @@ export type AttentionItem = {
 };
 
 export interface DashboardMetrics {
+  overdueCommitmentsCount?: number;
   activeDecisionsCount: number;
   openCommitmentsCount: number;
   detectedConflictsCount: number;
@@ -198,7 +220,7 @@ export interface ActivityFilters {
 
 // Action Payloads
 export interface ApprovalActionPayload {
-  action: 'approve' | 'reject';
+  action: 'approve' | 'reject' | 'clarify';
   rationale: string;
 }
 
@@ -206,7 +228,6 @@ export interface ConflictResolvePayload {
   action: 'resolve' | 'escalate' | 'dismiss';
   rationale: string;
 }
-
 
 // ============================================================================
 // Omi Conversations & Integration Types

@@ -1,54 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyDecisionTraceAuth } from '@/lib/decision-trace-auth';
+import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(request: NextRequest) {
-  const authResult = await verifyDecisionTraceAuth();
-  if (!authResult.authenticated) {
-    return authResult.response;
+async function proxy(request?: NextRequest): Promise<NextResponse> {
+  const auth = await verifyDecisionTraceAuth();
+  if (!auth.authenticated) return auth.response;
+  const backend = process.env.DECISIONTRACE_BACKEND_URL;
+  if (!backend) return NextResponse.json({ error: 'Backend is not configured.' }, { status: 503 });
+  const payload = request
+    ? z
+        .object({ external_omi_uid: z.string().trim().min(1).max(200).optional() })
+        .safeParse(await request.json().catch(() => null))
+    : null;
+  if (payload && !payload.success)
+    return NextResponse.json({ error: 'Invalid Omi user ID.' }, { status: 400 });
+  try {
+    const response = await fetch(`${backend}/integrations/omi${request ? '' : '/status'}`, {
+      method: request ? 'POST' : 'GET',
+      headers: auth.headers,
+      body: payload?.success ? JSON.stringify(payload.data) : undefined,
+      cache: 'no-store',
+      signal: AbortSignal.timeout(10000)
+    });
+    return NextResponse.json(await response.json(), {
+      status: response.status,
+      headers: { 'Cache-Control': 'no-store' }
+    });
+  } catch {
+    return NextResponse.json(
+      { error: 'Omi connection request failed. Please retry.' },
+      { status: 502 }
+    );
   }
+}
 
-  const backendUrl = process.env.DECISIONTRACE_BACKEND_URL;
-  const body = await request.json().catch(() => ({}));
-
-  if (backendUrl) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-
-      const res = await fetch(`${backendUrl}/integrations/omi`, {
-        method: 'POST',
-        headers: authResult.headers,
-        body: JSON.stringify(body),
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-
-      if (res.ok) {
-        const data = await res.json();
-        return NextResponse.json(data, { status: res.status });
-      }
-
-      const errBody = await res.json().catch(() => ({}));
-      return NextResponse.json(
-        {
-          error: errBody.detail || errBody.error || `FastAPI responded with ${res.status}`,
-          code: 'BACKEND_ERROR'
-        },
-        { status: res.status }
-      );
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Connection failed';
-      return NextResponse.json(
-        { error: `Failed to connect to FastAPI backend: ${message}`, code: 'BACKEND_UNREACHABLE' },
-        { status: 502 }
-      );
-    }
-  }
-
-  return NextResponse.json(
-    { error: 'Backend service unreachable', code: 'BACKEND_OFFLINE' },
-    { status: 503 }
-  );
+export function GET(): Promise<NextResponse> {
+  return proxy();
+}
+export function POST(request: NextRequest): Promise<NextResponse> {
+  return proxy(request);
 }
