@@ -49,7 +49,7 @@ export function CommitmentVelocityChart({ data }: CommitmentVelocityChartProps =
             <BarChart data={displayData} margin={{ left: -10, right: 10, top: 10, bottom: 0 }}>
               <CartesianGrid vertical={false} strokeDasharray='3 3' stroke='oklch(0.92 0.005 85)' />
               <XAxis dataKey='status' tickLine={false} axisLine={false} fontSize={12} />
-              <YAxis tickLine={false} axisLine={false} fontSize={12} />
+              <YAxis tickLine={false} axisLine={false} fontSize={12} allowDecimals={false} />
               <ChartTooltip content={<ChartTooltipContent />} />
               <Bar dataKey='count' radius={[4, 4, 0, 0]} />
             </BarChart>

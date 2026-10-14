@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { ApprovalRequest } from '../../types';
 import { ApprovalCard } from './approval-card';
 import { Input } from '@/components/ui/input';
@@ -12,7 +13,33 @@ interface ApprovalsListProps {
 }
 
 export function ApprovalsList({ initialApprovals }: ApprovalsListProps) {
-  const [approvals] = useState<ApprovalRequest[]>(initialApprovals);
+  const router = useRouter();
+  const [approvals, setApprovals] = useState<ApprovalRequest[]>(initialApprovals);
+  // Re-sync when the server component re-renders with fresh backend data
+  useEffect(() => setApprovals(initialApprovals), [initialApprovals]);
+
+  const handleActionComplete = useCallback(
+    (id: string, newStatus: string) => {
+      setApprovals((prev) =>
+        prev.map((a) =>
+          a.id === id ? { ...a, status: newStatus as ApprovalRequest['status'] } : a
+        )
+      );
+      router.refresh();
+    },
+    [router]
+  );
+
+  const counts = useMemo(() => {
+    const c: Record<string, number> = {
+      all: approvals.length,
+      pending: 0,
+      approved: 0,
+      rejected: 0
+    };
+    for (const a of approvals) c[a.status] = (c[a.status] ?? 0) + 1;
+    return c;
+  }, [approvals]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
@@ -52,7 +79,7 @@ export function ApprovalsList({ initialApprovals }: ApprovalsListProps) {
               onClick={() => setStatusFilter(st)}
               className='h-7 px-2.5 text-xs capitalize'
             >
-              {st}
+              {st} ({counts[st] ?? 0})
             </Button>
           ))}
         </div>
@@ -65,11 +92,19 @@ export function ApprovalsList({ initialApprovals }: ApprovalsListProps) {
             <Icons.shieldCheck className='size-8 text-muted-foreground pb-1' />
             <h4 className='text-sm font-semibold text-foreground'>No Approvals Found</h4>
             <p className='text-xs text-muted-foreground'>
-              There are no pending actions matching your filter criteria.
+              {statusFilter === 'all'
+                ? 'There are no approval requests matching your search.'
+                : `There are no ${statusFilter} approval requests matching your search.`}
             </p>
           </div>
         ) : (
-          filtered.map((approval) => <ApprovalCard key={approval.id} approval={approval} />)
+          filtered.map((approval) => (
+            <ApprovalCard
+              key={`${approval.id}:${approval.status}`}
+              approval={approval}
+              onActionComplete={handleActionComplete}
+            />
+          ))
         )}
       </div>
     </div>

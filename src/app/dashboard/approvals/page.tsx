@@ -31,7 +31,8 @@ export default async function ApprovalsPage() {
           </div>
           <div className='flex items-center gap-2'>
             <Badge variant='outline' className='text-xs'>
-              {approvals.length} Approval Items
+              {approvals.filter((a) => a.status === 'pending').length} Pending · {approvals.length}{' '}
+              Total
             </Badge>
           </div>
         </div>
