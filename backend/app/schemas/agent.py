@@ -36,11 +36,20 @@ class ExistingDecisionInput(BaseModel):
     version: int
 
 
+class NewEvidenceInput(BaseModel):
+    chunk_id: str
+    excerpt: str
+
+
 class AgentInvocationPayload(BaseModel):
     user_id: str
     conversation_id: uuid.UUID
     new_transcript: str
     new_evidence_ids: list[str]
+    # Chunk id -> excerpt map so the agent can cite real evidence IDs
+    new_evidence: list[NewEvidenceInput] = []
+    # ISO date the conversation happened; anchor for relative deadlines ("by Thursday")
+    conversation_date: str | None = None
     historical_evidence: list[HistoricalEvidenceInput] = []
     existing_decisions: list[ExistingDecisionInput] = []
     allowed_actions: list[ActionKind] = [

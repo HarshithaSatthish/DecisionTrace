@@ -4,9 +4,16 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.finding import EvidenceItem
+
+
+class DecisionEvidenceItem(BaseModel):
+    chunk_id: str
+    conversation_id: uuid.UUID | None = None
+    excerpt: str
+    source_time: datetime | None = None
 
 
 class DecisionRead(BaseModel):
@@ -22,6 +29,9 @@ class DecisionRead(BaseModel):
     updated_at: datetime
     created_at: datetime
     source_evidence: list[EvidenceItem] = []
+    # validation_alias keeps the ORM `Decision.evidence` relationship from being read here;
+    # the API fills this explicitly with tenant-scoped excerpts.
+    evidence: list[DecisionEvidenceItem] = Field(default_factory=list, validation_alias="evidence_excerpts")
 
 
 class DecisionDetailRead(DecisionRead):
