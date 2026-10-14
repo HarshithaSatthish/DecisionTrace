@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { applyApprovalStatus, countApprovalsByStatus, filterApprovals } from '@/lib/approval-state';
 import { ApprovalRequest } from '../../types';
 import { ApprovalCard } from './approval-card';
 import { Input } from '@/components/ui/input';
@@ -20,41 +21,20 @@ export function ApprovalsList({ initialApprovals }: ApprovalsListProps) {
 
   const handleActionComplete = useCallback(
     (id: string, newStatus: string) => {
-      setApprovals((prev) =>
-        prev.map((a) =>
-          a.id === id ? { ...a, status: newStatus as ApprovalRequest['status'] } : a
-        )
-      );
+      setApprovals((prev) => applyApprovalStatus(prev, id, newStatus as ApprovalRequest['status']));
       router.refresh();
     },
     [router]
   );
 
-  const counts = useMemo(() => {
-    const c: Record<string, number> = {
-      all: approvals.length,
-      pending: 0,
-      approved: 0,
-      rejected: 0
-    };
-    for (const a of approvals) c[a.status] = (c[a.status] ?? 0) + 1;
-    return c;
-  }, [approvals]);
+  const counts = useMemo(() => countApprovalsByStatus(approvals), [approvals]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  const filtered = useMemo(() => {
-    return approvals.filter((a) => {
-      const matchSearch =
-        search === '' ||
-        a.title.toLowerCase().includes(search.toLowerCase()) ||
-        a.description.toLowerCase().includes(search.toLowerCase()) ||
-        a.proposedBy.toLowerCase().includes(search.toLowerCase());
-
-      const matchStatus = statusFilter === 'all' || a.status === statusFilter;
-      return matchSearch && matchStatus;
-    });
-  }, [approvals, search, statusFilter]);
+  const filtered = useMemo(
+    () => filterApprovals(approvals, statusFilter, search),
+    [approvals, search, statusFilter]
+  );
 
   return (
     <div className='space-y-4'>

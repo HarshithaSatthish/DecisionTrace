@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { FIXTURE_DECISIONS } from '@/features/decision-trace/data/fixtures';
+import { mapBackendEvidence } from '@/lib/evidence-mapping';
 import { verifyDecisionTraceAuth, isDevPreviewEnabled } from '@/lib/decision-trace-auth';
 
 export const dynamic = 'force-dynamic';
@@ -71,7 +72,7 @@ export async function GET(request: NextRequest) {
               channel: 'Voice (Omi)',
               timestamp: d.updated_at || d.created_at || new Date().toISOString()
             },
-            evidence: Array.isArray(d.evidence) ? d.evidence : [],
+            evidence: mapBackendEvidence(d.evidence, topicTitle),
             confidence: d.confidence ?? 95,
             confidenceLevel: d.confidenceLevel || 'high',
             relatedCommitmentIds: d.relatedCommitmentIds || [String(d.id)],

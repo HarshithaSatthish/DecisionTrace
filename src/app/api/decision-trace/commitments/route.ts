@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { FIXTURE_COMMITMENTS } from '@/features/decision-trace/data/fixtures';
+import { mapBackendEvidence } from '@/lib/evidence-mapping';
 import { verifyDecisionTraceAuth, isDevPreviewEnabled } from '@/lib/decision-trace-auth';
 
 export const dynamic = 'force-dynamic';
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
         res = await fetch(`${backendUrl}/decisions?${searchParams.toString()}`, {
           headers: authResult.headers,
           cache: 'no-store',
-        signal: AbortSignal.timeout(10000)
+          signal: AbortSignal.timeout(10000)
         }).catch(() => null);
       }
 
@@ -64,7 +65,7 @@ export async function GET(request: NextRequest) {
             priority: d.priority || 'high',
             relatedDecisionId: String(d.id),
             relatedDecisionTitle: topicTitle,
-            evidence: Array.isArray(d.evidence) ? d.evidence : [],
+            evidence: mapBackendEvidence(d.evidence, topicTitle),
             progressPercentage: undefined
           };
         });
