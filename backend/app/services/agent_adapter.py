@@ -261,7 +261,15 @@ class LyzrAgentAdapter:
                     anchor = date.fromisoformat(payload.conversation_date[:10])
                 except ValueError:
                     pass
-            action["due_date"] = resolve_due_date(action.get("due_date"), anchor)
+            agent_due = resolve_due_date(action.get("due_date"), anchor)
+            # The stated deadline phrase in the commitment text ("on Friday", "by Thursday") is
+            # resolved deterministically server-side and wins over the agent's date: live Lyzr
+            # returned the conversation date itself for "launch on Friday".
+            stated_due = resolve_due_date(str(action.get("new_value") or ""), anchor)
+            due = stated_due or agent_due
+            if due and due[:10] < anchor.isoformat():
+                due = None  # deadlines before the conversation are never valid
+            action["due_date"] = due
             raw_data = {**raw_data, "proposed_action": action}
         return raw_data
 

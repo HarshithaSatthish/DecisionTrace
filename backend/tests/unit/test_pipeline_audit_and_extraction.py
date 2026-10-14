@@ -126,3 +126,46 @@ def test_worker_entrypoint_configures_info_logging():
 
     setup_logging()
     assert logging.getLogger().getEffectiveLevel() <= logging.INFO
+
+
+def test_stated_weekday_beats_agent_date_from_live_lyzr_run():
+    """Live PR #16 run: Lyzr returned the conversation date for 'Launch DecisionTrace on Friday.'"""
+    import uuid as _uuid
+
+    from app.schemas.agent import AgentInvocationPayload
+    from app.services.agent_adapter import LyzrAgentAdapter
+
+    payload = AgentInvocationPayload(
+        user_id="u",
+        conversation_id=_uuid.uuid4(),
+        new_transcript="We decided to launch DecisionTrace on Friday.",
+        new_evidence_ids=["chk_1"],
+        conversation_date="2026-10-14",  # Wednesday
+    )
+    raw = {
+        "proposed_action": {
+            "kind": "create_decision",
+            "new_value": "Launch DecisionTrace on Friday.",
+            "topic": "DecisionTrace Launch",
+            "owner": None,
+            "due_date": "2026-10-14",
+        }
+    }
+    out = LyzrAgentAdapter._normalize_raw(raw, payload)
+    assert out["proposed_action"]["due_date"].startswith("2026-10-16T23:59")
+
+
+def test_agent_date_before_conversation_is_dropped_and_bare_date_is_end_of_day():
+    import uuid as _uuid
+    from datetime import date
+
+    from app.schemas.agent import AgentInvocationPayload
+    from app.services.agent_adapter import LyzrAgentAdapter
+    from app.services.dates import resolve_due_date
+
+    assert resolve_due_date("2026-10-20", date(2026, 10, 14)).startswith("2026-10-20T23:59")
+    payload = AgentInvocationPayload(
+        user_id="u", conversation_id=_uuid.uuid4(), new_transcript="x", new_evidence_ids=[], conversation_date="2026-10-14"
+    )
+    raw = {"proposed_action": {"kind": "create_decision", "new_value": "Ship it", "due_date": "2026-10-01"}}
+    assert LyzrAgentAdapter._normalize_raw(raw, payload)["proposed_action"]["due_date"] is None

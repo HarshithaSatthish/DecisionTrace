@@ -25,6 +25,13 @@ def resolve_due_date(value: object, anchor: date) -> str | None:
     text = str(value).strip().lower()
     if not text:
         return None
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", text):
+        # Bare date (what Lyzr returns): end of that day, UTC, like phrase resolution.
+        try:
+            d = date.fromisoformat(text)
+        except ValueError:
+            return None
+        return datetime(d.year, d.month, d.day, 23, 59, tzinfo=timezone.utc).isoformat()
     try:
         dt = datetime.fromisoformat(text.replace("z", "+00:00"))
         return dt.isoformat()
