@@ -6,7 +6,7 @@ import re
 from typing import Any
 
 import httpx
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from app.core.config import settings
 from app.schemas.agent import (
@@ -16,6 +16,17 @@ from app.schemas.agent import (
 )
 
 logger = logging.getLogger(__name__)
+
+_RETRYABLE_STATUS = {408, 425, 429, 500, 502, 503, 504}
+
+
+def _is_retryable_lyzr_error(exc: BaseException) -> bool:
+    """Retry transport errors and transient HTTP statuses (rate limits, 5xx); never 4xx auth/validation."""
+    if isinstance(exc, httpx.RequestError):
+        return True
+    if isinstance(exc, httpx.HTTPStatusError):
+        return exc.response.status_code in _RETRYABLE_STATUS
+    return False
 
 
 class AgentValidationError(Exception):
@@ -58,7 +69,7 @@ class LyzrAgentAdapter:
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=4),
-        retry=retry_if_exception_type(httpx.RequestError),
+        retry=retry_if_exception(_is_retryable_lyzr_error),
         reraise=True,
     )
     async def _call_lyzr_api(self, payload: AgentInvocationPayload) -> dict[str, Any]:
@@ -110,7 +121,8 @@ class LyzrAgentAdapter:
                 "context": payload.model_dump(mode="json"),
             }
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        timeout = httpx.Timeout(settings.LYZR_TIMEOUT_SECONDS, connect=10.0)
+        async with httpx.AsyncClient(timeout=timeout) as client:
             resp = await client.post(url, headers=headers, json=body)
             resp.raise_for_status()
             data = resp.json()
