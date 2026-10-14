@@ -9,7 +9,11 @@ from sqlmodel import Session
 from app.core.config import settings
 from app.core.security import hash_webhook_token
 from app.db.models import Conversation, ProcessingJob, utc_now
-from app.db.repository import get_conversation_by_source_id, get_integration_by_token_hash
+from app.db.repository import (
+    get_conversation_by_source_id,
+    get_integration_by_token_hash,
+    record_audit_event,
+)
 from app.schemas.conversation import OmiMemoryCreatedWebhook, WebhookResponse
 
 logger = logging.getLogger(__name__)
@@ -142,6 +146,16 @@ def ingest_omi_memory(
         ],
     )
     session.add(job)
+    record_audit_event(
+        session=session,
+        user_id=integration.user_id,
+        action="conversation_ingested",
+        actor_type="system",
+        actor_id=f"omi:{integration.installation_id}",
+        entity_type="conversation",
+        entity_id=str(conv.id),
+        after_state={"source_event_id": payload.id, "segments": len(payload.transcript_segments)},
+    )
     session.commit()
     session.refresh(conv)
     session.refresh(job)

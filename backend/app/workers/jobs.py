@@ -18,10 +18,12 @@ from app.db.models import (
     ProcessingJob,
     utc_now,
 )
+from app.db.repository import record_audit_event
 from app.db.session import get_session_context
 from app.schemas.agent import (
     AgentInvocationPayload,
     ExistingDecisionInput,
+    NewEvidenceInput,
 )
 from app.services.agent_adapter import LyzrAgentAdapter
 from app.services.chunking import chunk_transcript
@@ -147,6 +149,8 @@ def _execute_job_pipeline(
             conversation_id=conv.id,
             new_transcript=conv.normalized_transcript,
             new_evidence_ids=new_chunk_ids,
+            new_evidence=[NewEvidenceInput(chunk_id=c.id, excerpt=c.excerpt) for c in chunks],
+            conversation_date=(conv.source_time or utc_now()).date().isoformat(),
             historical_evidence=historical_evidence,
             existing_decisions=existing_decisions_input,
         )
@@ -252,6 +256,33 @@ def _execute_job_pipeline(
             final_state = "awaiting_approval"
             job.milestones.append({"state": "proposed", "timestamp": now.isoformat()})
             job.milestones.append({"state": "awaiting_approval", "timestamp": now.isoformat()})
+
+        record_audit_event(
+            session=session,
+            user_id=conv.user_id,
+            action="conversation_processed",
+            actor_type="agent",
+            actor_id=adapter.manager_agent_id or "lyzr-eval-engine",
+            entity_type="conversation",
+            entity_id=str(conv.id),
+            after_state={
+                "finding_id": str(finding.id),
+                "classification": analysis_result.classification,
+                "evidence_count": len(analysis_result.evidence_chunk_ids),
+                "outcome": final_state,
+            },
+        )
+        if final_state == "awaiting_approval":
+            record_audit_event(
+                session=session,
+                user_id=conv.user_id,
+                action="approval_requested",
+                actor_type="agent",
+                actor_id=adapter.manager_agent_id or "lyzr-eval-engine",
+                entity_type="approval_request",
+                entity_id=str(approval_req.id),
+                after_state={"finding_id": str(finding.id), "kind": approval_req.action_payload.get("kind")},
+            )
 
         # Finish job
         job.state = final_state
