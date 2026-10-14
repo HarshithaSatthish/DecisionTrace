@@ -7,7 +7,7 @@ import { InteractiveGridPattern } from './interactive-grid';
 
 export const metadata: Metadata = {
   title: 'Authentication',
-  description: 'Authentication forms built using the components.'
+  description: 'Sign in to review decisions, commitments, and proposed actions.'
 };
 
 export default function SignInViewPage() {
@@ -37,7 +37,7 @@ export default function SignInViewPage() {
           >
             <path d='M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3' />
           </svg>
-          Logo
+          DecisionTrace
         </div>
         <InteractiveGridPattern
           className={cn(
@@ -48,10 +48,12 @@ export default function SignInViewPage() {
         <div className='text-sidebar-foreground relative z-20 mt-auto'>
           <blockquote className='space-y-2'>
             <p className='text-lg'>
-              &ldquo;This starter template has saved me countless hours of work and helped me
-              deliver projects to my clients faster than ever before.&rdquo;
+              Keep every decision grounded in its conversation. Review important changes before they
+              take effect.
             </p>
-            <footer className='text-sidebar-foreground/70 text-sm'>Random Dude</footer>
+            <footer className='text-sidebar-foreground/70 text-sm'>
+              Autonomous Decision & Commitment Guardian
+            </footer>
           </blockquote>
         </div>
       </div>

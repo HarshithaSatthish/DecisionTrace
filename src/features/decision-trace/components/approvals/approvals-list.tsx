@@ -12,7 +12,7 @@ interface ApprovalsListProps {
 }
 
 export function ApprovalsList({ initialApprovals }: ApprovalsListProps) {
-  const [approvals] = useState<ApprovalRequest[]>(initialApprovals);
+  const approvals = initialApprovals;
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
@@ -44,7 +44,7 @@ export function ApprovalsList({ initialApprovals }: ApprovalsListProps) {
         </div>
 
         <div className='flex items-center gap-1 border border-border/80 rounded-md p-1 bg-muted/20 text-xs'>
-          {['all', 'pending', 'approved', 'rejected'].map((st) => (
+          {['all', 'pending', 'approved', 'rejected', 'clarified'].map((st) => (
             <Button
               key={st}
               variant={statusFilter === st ? 'secondary' : 'ghost'}

@@ -47,7 +47,10 @@ export function DecisionDetailDrawer({
             </Badge>
             <DecisionStatusBadge status={decision.status} />
             <Badge variant='secondary' className='text-xs font-normal ml-auto'>
-              Confidence: {decision.confidence}% ({decision.confidenceLevel})
+              Confidence:{' '}
+              {decision.confidenceAvailable === false
+                ? 'Not supplied'
+                : `${decision.confidence}% (${decision.confidenceLevel})`}
             </Badge>
           </div>
           <SheetTitle className='text-xl font-bold leading-snug text-foreground'>

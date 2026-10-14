@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Icons } from '@/components/icons';
 import { Commitment } from '../../types';
 import { PriorityBadge } from '../status-badges';
+import { cn } from '@/lib/utils';
 
 interface CommitmentCardProps extends Omit<
   React.ComponentProps<typeof KanbanItem>,
@@ -21,6 +22,8 @@ export function CommitmentCard({ commitment, onSelect, ...props }: CommitmentCar
       key={commitment.id}
       value={commitment.id}
       {...props}
+      disabled={commitment.readOnly}
+      className={cn(props.className, commitment.readOnly && 'pointer-events-auto opacity-100')}
       render={
         <div
           role='button'
@@ -43,6 +46,8 @@ export function CommitmentCard({ commitment, onSelect, ...props }: CommitmentCar
             {commitment.title}
           </span>
           <PriorityBadge priority={commitment.priority} />
+          {commitment.overdue ? <Badge variant='destructive'>Overdue</Badge> : null}
+          {commitment.needsFollowUp ? <Badge variant='outline'>Needs follow-up</Badge> : null}
         </div>
 
         {/* Originating Decision Tag */}

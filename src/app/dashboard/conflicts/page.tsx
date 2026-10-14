@@ -1,6 +1,6 @@
 import React from 'react';
 import PageContainer from '@/components/layout/page-container';
-import { getConflicts } from '@/features/decision-trace/api/service';
+import { getConflicts } from '@/features/decision-trace/api/server';
 import { ConflictsList } from '@/features/decision-trace/components/conflicts/conflicts-list';
 import { DevelopmentPreviewBanner } from '@/features/decision-trace/components/development-preview-banner';
 import { Badge } from '@/components/ui/badge';

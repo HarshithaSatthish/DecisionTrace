@@ -7,6 +7,7 @@ interface RawApprovalPayload {
   topic?: string;
   new_value?: string;
   owner?: string;
+  due_date?: string;
   target_decision_id?: string;
 }
 
@@ -43,7 +44,8 @@ export async function GET() {
     try {
       const res = await fetch(`${backendUrl}/approvals`, {
         headers: authResult.headers,
-        cache: 'no-store'
+        cache: 'no-store',
+        signal: AbortSignal.timeout(10000)
       });
       if (res.ok) {
         const raw = await res.json();
@@ -62,7 +64,11 @@ export async function GET() {
             actionType:
               r.action_payload?.kind === 'request_decision_update'
                 ? 'supersede_decision'
-                : 'override_conflict',
+                : r.action_payload?.kind === 'create_decision'
+                  ? 'create_decision'
+                  : r.action_payload?.kind === 'create_task'
+                    ? 'create_task'
+                    : 'request_clarification',
             proposedBy: `Lyzr Autonomous Guardian (${r.requester || 'Agent'})`,
             requestedAt: r.created_at || new Date().toISOString(),
             status:
@@ -70,9 +76,11 @@ export async function GET() {
                 ? 'pending'
                 : r.status === 'approved'
                   ? 'approved'
-                  : 'rejected',
+                  : r.status === 'clarified'
+                    ? 'clarified'
+                    : 'rejected',
             impactLevel: 'high',
-            exactActionPreview: `Execute atomic mutation on decision '${r.action_payload?.topic}' -> '${r.action_payload?.new_value}' (Key: ${r.execution_key})`,
+            exactActionPreview: `${(r.action_payload?.kind || 'request clarification').replaceAll('_', ' ')}: '${r.action_payload?.topic || topic}' -> '${r.action_payload?.new_value || ''}'. Owner: ${r.action_payload?.owner || 'not specified'}. Due: ${r.action_payload?.due_date || 'not specified'}.`,
             targetEntityId: String(r.finding_id || r.id),
             targetEntityType: 'decision',
             evidence: r.evidence || []
@@ -91,5 +99,5 @@ export async function GET() {
     return res;
   }
 
-  return NextResponse.json([]);
+  return NextResponse.json({ error: 'Backend unavailable. Please retry.' }, { status: 503 });
 }

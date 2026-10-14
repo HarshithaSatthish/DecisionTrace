@@ -22,6 +22,12 @@ interface RawDecision {
   sourceConversation?: { id: string; title: string; channel: string; timestamp: string };
   source_event_id?: string;
   evidence?: unknown[];
+  source_evidence?: {
+    chunk_id: string;
+    excerpt: string;
+    conversation_id: string;
+    source_time?: string;
+  }[];
   confidence?: number;
   confidenceLevel?: 'high' | 'medium' | 'low';
   relatedCommitmentIds?: string[];
@@ -42,7 +48,8 @@ export async function GET(request: NextRequest) {
     try {
       const res = await fetch(`${backendUrl}/decisions?${searchParams.toString()}`, {
         headers: authResult.headers,
-        cache: 'no-store'
+        cache: 'no-store',
+        signal: AbortSignal.timeout(10000)
       });
       if (res.ok) {
         const raw = await res.json();
@@ -70,9 +77,19 @@ export async function GET(request: NextRequest) {
               channel: 'Voice (Omi)',
               timestamp: d.updated_at || d.created_at || new Date().toISOString()
             },
-            evidence: Array.isArray(d.evidence) ? d.evidence : [],
-            confidence: d.confidence ?? 95,
-            confidenceLevel: d.confidenceLevel || 'high',
+            evidence: Array.isArray(d.evidence)
+              ? d.evidence
+              : (d.source_evidence || []).map((item) => ({
+                  id: item.chunk_id,
+                  sourceType: 'meeting',
+                  sourceTitle: 'Omi conversation',
+                  speakerOrAuthor: 'Unattributed',
+                  timestamp: item.source_time || d.created_at || '',
+                  quote: item.excerpt
+                })),
+            confidence: d.confidence ?? 0,
+            confidenceLevel: d.confidenceLevel || 'low',
+            confidenceAvailable: d.confidence !== undefined,
             relatedCommitmentIds: d.relatedCommitmentIds || [String(d.id)],
             category: d.category || d.topic || 'Engineering',
             impactLevel: d.impactLevel || 'high'
@@ -108,5 +125,5 @@ export async function GET(request: NextRequest) {
   }
 
   // Production offline: return empty list, never fake decisions
-  return NextResponse.json([]);
+  return NextResponse.json({ error: 'Backend unavailable. Please retry.' }, { status: 503 });
 }

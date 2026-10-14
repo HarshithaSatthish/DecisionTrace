@@ -11,7 +11,7 @@ import {
 import { Icons } from '@/components/icons';
 import React from 'react';
 import Link from 'next/link';
-import { getDashboardMetrics } from '@/features/decision-trace/api/service';
+import { getDashboardMetrics } from '@/features/decision-trace/api/server';
 import { AttentionItemsBanner } from '@/features/decision-trace/components/overview/attention-items-banner';
 import { DevelopmentPreviewBanner } from '@/features/decision-trace/components/development-preview-banner';
 
@@ -73,7 +73,7 @@ export default async function OverViewLayout({
                     className='gap-1 border-indigo-200 text-indigo-700 dark:text-indigo-300'
                   >
                     <Icons.trendingUp className='size-3' />
-                    +2 this week
+                    Active records
                   </Badge>
                 </CardAction>
               </CardHeader>
@@ -106,12 +106,13 @@ export default async function OverViewLayout({
                     variant='outline'
                     className='gap-1 border-teal-200 text-teal-700 dark:text-teal-300'
                   >
-                    <Icons.clock className='size-3' />1 blocked
+                    <Icons.clock className='size-3' />
+                    {metrics.overdueCommitmentsCount ?? 0} overdue
                   </Badge>
                 </CardAction>
               </CardHeader>
               <CardFooter className='pt-0 text-xs text-muted-foreground flex justify-between'>
-                <span>1 planned, 2 in progress</span>
+                <span>Review current commitments</span>
                 <span className='text-teal-600 font-medium group-hover:underline'>
                   Board &rarr;
                 </span>
@@ -144,7 +145,7 @@ export default async function OverViewLayout({
                 </CardAction>
               </CardHeader>
               <CardFooter className='pt-0 text-xs text-rose-800/80 dark:text-rose-300 flex justify-between'>
-                <span>1 critical, 1 high severity</span>
+                <span>Review conflict evidence</span>
                 <span className='font-semibold text-rose-700 group-hover:underline'>
                   Resolve &rarr;
                 </span>

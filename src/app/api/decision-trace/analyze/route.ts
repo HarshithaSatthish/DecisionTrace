@@ -6,8 +6,50 @@ import {
   isLyzrPreviewAllowed
 } from '@/server/lyzr';
 import type { Decision } from '@/features/decision-trace/types';
+import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
+
+const shortText = z.string().max(500);
+const decisionInput = z.object({
+  id: shortText,
+  title: shortText,
+  summary: z.string().max(10000),
+  whatWasDecided: z.string().max(10000),
+  participants: z.array(shortText).max(100),
+  createdAt: shortText,
+  updatedAt: shortText,
+  status: z.enum(['active', 'superseded', 'under_review', 'deprecated']),
+  sourceConversation: z.object({
+    id: shortText,
+    title: shortText,
+    channel: shortText,
+    timestamp: shortText
+  }),
+  evidence: z
+    .array(
+      z.object({
+        id: shortText,
+        sourceType: z.enum(['slack', 'teams', 'meeting', 'document', 'email']),
+        sourceTitle: shortText,
+        speakerOrAuthor: shortText,
+        timestamp: shortText,
+        quote: z.string().max(10000)
+      })
+    )
+    .max(20),
+  confidence: z.number().min(0).max(100),
+  confidenceLevel: z.enum(['high', 'medium', 'low']),
+  relatedCommitmentIds: z.array(shortText).max(100),
+  category: shortText,
+  impactLevel: z.enum(['low', 'medium', 'high', 'critical'])
+});
+const analysisOptions = z.object({
+  sourceTitle: shortText.optional(),
+  channel: shortText.optional(),
+  timestamp: z.iso.datetime({ offset: true }).optional(),
+  existingDecisions: z.array(decisionInput).max(100).optional()
+});
 
 export async function POST(request: NextRequest) {
   // 1. Clerk Authentication Verification
@@ -49,6 +91,12 @@ export async function POST(request: NextRequest) {
     timestamp?: string;
     existingDecisions?: Decision[];
   };
+  if (!analysisOptions.safeParse(body).success || JSON.stringify(body).length > 250000) {
+    return NextResponse.json(
+      { error: 'Invalid or oversized analysis context.', code: 'INVALID_INPUT' },
+      { status: 400 }
+    );
+  }
 
   // 3. Truthful Configuration Guard:
   // If Lyzr is not configured (missing LYZR_API_KEY) and we are in strict production without demo preview,
@@ -84,7 +132,7 @@ export async function POST(request: NextRequest) {
     );
 
     const response = NextResponse.json(analysis);
-    if (!isLyzrConfigured()) {
+    if (analysis.provenance.mode !== 'live-lyzr-agent') {
       response.headers.set('X-DecisionTrace-Lyzr-Engine', 'deterministic-grounded-preview');
     } else {
       response.headers.set('X-DecisionTrace-Lyzr-Engine', 'live-lyzr-studio');

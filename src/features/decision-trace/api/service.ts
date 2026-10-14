@@ -18,6 +18,7 @@ import {
   ActivityFilters,
   DashboardMetrics
 } from '../types';
+import type { IntegrationStatus, OmiConnection } from '../types';
 import {
   FIXTURE_DECISIONS,
   FIXTURE_COMMITMENTS,
@@ -38,6 +39,31 @@ export const EMPTY_METRICS: DashboardMetrics = {
   recentActivity: [],
   isProductionOffline: true
 };
+
+export async function getIntegrationHealth(): Promise<IntegrationStatus> {
+  const result = await fetch('/api/decision-trace/health', { signal: AbortSignal.timeout(10000) });
+  if (!result.ok) throw new Error('Health check failed. Please retry.');
+  return result.json();
+}
+
+export async function getOmiConnection(): Promise<OmiConnection> {
+  const result = await fetch('/api/decision-trace/integrations/omi', {
+    signal: AbortSignal.timeout(10000)
+  });
+  if (!result.ok) throw new Error('Unable to load your Omi connection. Please retry.');
+  return result.json();
+}
+
+export async function connectOmi(userId?: string): Promise<{ webhook_url: string }> {
+  const result = await fetch('/api/decision-trace/integrations/omi', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ external_omi_uid: userId }),
+    signal: AbortSignal.timeout(10000)
+  });
+  if (!result.ok) throw new Error('Unable to configure Omi. Please retry.');
+  return result.json();
+}
 
 // Helper to determine if we should attempt direct FastAPI backend or proxy handler
 export async function getDashboardMetrics(): Promise<DashboardMetrics> {

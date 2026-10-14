@@ -48,6 +48,15 @@ export function CommitmentDetailModal({
         </DialogHeader>
 
         <div className='space-y-4 py-2'>
+          {commitment.readOnly ? (
+            <p className='text-sm text-muted-foreground'>
+              This authoritative commitment is governed by decision approvals.{' '}
+              <Link href='/dashboard/approvals' className='underline'>
+                Review proposed changes
+              </Link>
+              .
+            </p>
+          ) : null}
           {/* Task Description */}
           <div className='space-y-1.5'>
             <h4 className='text-xs font-semibold uppercase tracking-wider text-muted-foreground'>

@@ -188,11 +188,15 @@ export function DecisionsTable({ initialDecisions, initialCommitments }: Decisio
                         />
                       </div>
                       <span className='text-xs font-medium tabular-nums'>
-                        {decision.confidence}%
+                        {decision.confidenceAvailable === false
+                          ? 'Not supplied'
+                          : `${decision.confidence}%`}
                       </span>
                     </div>
                     <span className='text-[10px] text-muted-foreground capitalize'>
-                      {decision.confidenceLevel} match
+                      {decision.confidenceAvailable === false
+                        ? ''
+                        : `${decision.confidenceLevel} match`}
                     </span>
                   </TableCell>
                   <TableCell className='py-3'>
