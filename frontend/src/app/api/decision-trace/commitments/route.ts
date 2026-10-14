@@ -16,8 +16,7 @@ export async function GET(request: NextRequest) {
 
   if (backendUrl) {
     try {
-      // Backend contract: commitments are derived from /decisions
-      const res = await fetch(`${backendUrl}/decisions?${searchParams.toString()}`, {
+      const res = await fetch(`${backendUrl}/commitments?${searchParams.toString()}`, {
         headers: authResult.headers,
         cache: 'no-store'
       });

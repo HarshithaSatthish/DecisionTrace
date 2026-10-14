@@ -55,7 +55,9 @@ describe('Core Screens & Omi Connection Verification Suite', () => {
 
     test('/api/decision-trace/integrations/omi/status rejects unauthenticated access with 401', async () => {
       mockSessionUser = null;
-      const req = new NextRequest('http://localhost:3000/api/decision-trace/integrations/omi/status');
+      const req = new NextRequest(
+        'http://localhost:3000/api/decision-trace/integrations/omi/status'
+      );
       const res = await getOmiStatusRoute(req);
       expect(res.status).toBe(401);
       const data = await res.json();
@@ -89,7 +91,7 @@ describe('Core Screens & Omi Connection Verification Suite', () => {
               JSON.stringify({
                 items: [
                   {
-                    id: 'appr-uuid-123',
+                    id: 'de305d54-75b4-431b-adb2-eb6b9e546014',
                     finding_id: 'conf-test-456',
                     status: 'pending',
                     execution_key: 'exec_key_mock_789'
@@ -101,11 +103,11 @@ describe('Core Screens & Omi Connection Verification Suite', () => {
             )
           );
         }
-        if (urlStr.includes('/approvals/appr-uuid-123/approve')) {
+        if (urlStr.includes('/approvals/de305d54-75b4-431b-adb2-eb6b9e546014/approve')) {
           return Promise.resolve(
             new Response(
               JSON.stringify({
-                id: 'appr-uuid-123',
+                id: 'de305d54-75b4-431b-adb2-eb6b9e546014',
                 status: 'approved',
                 message: 'Approval executed and authoritative record updated successfully',
                 resulting_decision: {
@@ -121,10 +123,13 @@ describe('Core Screens & Omi Connection Verification Suite', () => {
         return Promise.resolve(new Response('{}', { status: 404 }));
       }) as unknown as typeof fetch;
 
-      const req = new NextRequest('http://localhost:3000/api/decision-trace/conflicts/conf-test-456/resolve', {
-        method: 'POST',
-        body: JSON.stringify({ action: 'resolve', rationale: 'CTO confirmed resolution' })
-      });
+      const req = new NextRequest(
+        'http://localhost:3000/api/decision-trace/conflicts/conf-test-456/resolve',
+        {
+          method: 'POST',
+          body: JSON.stringify({ action: 'resolve', rationale: 'CTO confirmed resolution' })
+        }
+      );
 
       const prevUrl = process.env.DECISIONTRACE_BACKEND_URL;
       process.env.DECISIONTRACE_BACKEND_URL = 'http://mock-fastapi.internal/api/v1';
@@ -136,7 +141,7 @@ describe('Core Screens & Omi Connection Verification Suite', () => {
         expect(res.status).toBe(200);
         const data = await res.json();
         expect(data.success).toBe(true);
-        expect(data.approvalId).toBe('appr-uuid-123');
+        expect(data.approvalId).toBe('de305d54-75b4-431b-adb2-eb6b9e546014');
         expect(data.status).toBe('approved');
         expect(data.resultingDecision).toBeDefined();
       } finally {
@@ -157,10 +162,13 @@ describe('Core Screens & Omi Connection Verification Suite', () => {
         )
       ) as unknown as typeof fetch;
 
-      const req = new NextRequest('http://localhost:3000/api/decision-trace/conflicts/orphan-conf/resolve', {
-        method: 'POST',
-        body: JSON.stringify({ action: 'resolve' })
-      });
+      const req = new NextRequest(
+        'http://localhost:3000/api/decision-trace/conflicts/orphan-conf/resolve',
+        {
+          method: 'POST',
+          body: JSON.stringify({ action: 'resolve' })
+        }
+      );
 
       const prevUrl = process.env.DECISIONTRACE_BACKEND_URL;
       process.env.DECISIONTRACE_BACKEND_URL = 'http://mock-fastapi.internal/api/v1';

@@ -13,6 +13,7 @@ import { ApprovalStatusBadge, ImpactBadge } from '../status-badges';
 import { EvidenceCard } from '../evidence-card';
 import { executeApprovalAction } from '../../api/service';
 import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 
 interface ApprovalCardProps {
   approval: ApprovalRequest;
@@ -20,13 +21,14 @@ interface ApprovalCardProps {
 }
 
 export function ApprovalCard({ approval, onActionComplete }: ApprovalCardProps) {
+  const router = useRouter();
   const [showEvidence, setShowEvidence] = useState(false);
   const [rationale, setRationale] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [currentStatus, setCurrentStatus] = useState(approval.status);
 
-  const handleAction = async (action: 'approve' | 'reject') => {
+  const handleAction = async (action: 'approve' | 'reject' | 'clarify') => {
     setLoading(true);
     setErrorMessage(null);
 
@@ -39,7 +41,10 @@ export function ApprovalCard({ approval, onActionComplete }: ApprovalCardProps) 
 
       // Only update if backend confirmed success
       if (result.success) {
-        setCurrentStatus(action === 'approve' ? 'approved' : 'rejected');
+        setCurrentStatus(
+          action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : 'clarified'
+        );
+        router.refresh();
         toast.success(`Approval confirmed by backend consensus engine`);
         onActionComplete?.(approval.id, action);
       }
@@ -143,6 +148,7 @@ export function ApprovalCard({ approval, onActionComplete }: ApprovalCardProps) 
           <div className='pt-2 border-t border-border/40 space-y-3'>
             <div className='flex flex-col sm:flex-row items-stretch sm:items-center gap-2'>
               <Input
+                aria-label='Audit note or clarification request'
                 placeholder='Optional audit note / sign-off rationale...'
                 value={rationale}
                 onChange={(e) => setRationale(e.target.value)}
@@ -150,6 +156,14 @@ export function ApprovalCard({ approval, onActionComplete }: ApprovalCardProps) 
                 className='h-8 text-xs flex-1'
               />
               <div className='flex items-center gap-2 shrink-0'>
+                <Button
+                  variant='outline'
+                  size='sm'
+                  disabled={loading}
+                  onClick={() => handleAction('clarify')}
+                >
+                  Clarify
+                </Button>
                 <Button
                   variant='outline'
                   size='sm'
@@ -163,7 +177,7 @@ export function ApprovalCard({ approval, onActionComplete }: ApprovalCardProps) 
                 <Button
                   variant='default'
                   size='sm'
-                  disabled={loading}
+                  disabled={loading || approval.actionType === 'request_clarification'}
                   onClick={() => handleAction('approve')}
                   className='h-8 text-xs bg-indigo-600 hover:bg-indigo-700'
                 >

@@ -55,13 +55,16 @@ describe('Production API Error Resilience & Tenant Cache Isolation Audit', () =>
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
-    if (originalNodeEnv !== undefined) (process.env as Record<string, string | undefined>).NODE_ENV = originalNodeEnv;
+    if (originalNodeEnv !== undefined)
+      (process.env as Record<string, string | undefined>).NODE_ENV = originalNodeEnv;
     else delete (process.env as Record<string, string | undefined>).NODE_ENV;
 
-    if (originalBackendUrl !== undefined) process.env.DECISIONTRACE_BACKEND_URL = originalBackendUrl;
+    if (originalBackendUrl !== undefined)
+      process.env.DECISIONTRACE_BACKEND_URL = originalBackendUrl;
     else delete process.env.DECISIONTRACE_BACKEND_URL;
 
-    if (originalPreview !== undefined) process.env.NEXT_PUBLIC_DECISIONTRACE_DEMO_PREVIEW = originalPreview;
+    if (originalPreview !== undefined)
+      process.env.NEXT_PUBLIC_DECISIONTRACE_DEMO_PREVIEW = originalPreview;
     else delete process.env.NEXT_PUBLIC_DECISIONTRACE_DEMO_PREVIEW;
 
     if (originalTestUser !== undefined) process.env.TEST_AUTH_USER_ID = originalTestUser;
@@ -247,7 +250,9 @@ describe('Production API Error Resilience & Tenant Cache Isolation Audit', () =>
     });
 
     test('handles network failure (connection refused / offline) by surfacing NETWORK_ERROR', async () => {
-      globalThis.fetch = mock(() => Promise.reject(new TypeError('Failed to fetch'))) as unknown as typeof fetch;
+      globalThis.fetch = mock(() =>
+        Promise.reject(new TypeError('Failed to fetch'))
+      ) as unknown as typeof fetch;
 
       try {
         await getActivity();
@@ -325,7 +330,10 @@ describe('Production API Error Resilience & Tenant Cache Isolation Audit', () =>
       const fetchCalls: { url: string; headers: Record<string, string> }[] = [];
 
       globalThis.fetch = mock((url: unknown, init?: unknown) => {
-        const headers = ((init as RequestInit | undefined)?.headers || {}) as Record<string, string>;
+        const headers = ((init as RequestInit | undefined)?.headers || {}) as Record<
+          string,
+          string
+        >;
         fetchCalls.push({ url: String(url), headers });
 
         const userId = headers['X-User-Id'];
@@ -420,10 +428,19 @@ describe('Production API Error Resilience & Tenant Cache Isolation Audit', () =>
       globalThis.fetch = mock((url: unknown) => {
         requestedUrls.push(String(url));
         return Promise.resolve(
-          new Response(JSON.stringify({ items: [], total: 0, active_decisions: 0, pending_approvals: 0, recent_findings: 0 }), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' }
-          })
+          new Response(
+            JSON.stringify({
+              items: [],
+              total: 0,
+              active_decisions: 0,
+              pending_approvals: 0,
+              recent_findings: 0
+            }),
+            {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' }
+            }
+          )
         );
       }) as unknown as typeof fetch;
 
@@ -434,8 +451,7 @@ describe('Production API Error Resilience & Tenant Cache Isolation Audit', () =>
       expect(requestedUrls.some((u) => u.includes('/decisions'))).toBe(true);
 
       await getCommitments();
-      // Commitments derived from /decisions contract
-      expect(requestedUrls.filter((u) => u.includes('/decisions')).length).toBeGreaterThanOrEqual(2);
+      expect(requestedUrls.some((u) => u.includes('/commitments'))).toBe(true);
 
       await getConflicts();
       // Conflicts derived from /findings contract

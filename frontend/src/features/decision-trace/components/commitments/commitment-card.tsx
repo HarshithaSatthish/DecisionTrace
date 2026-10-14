@@ -7,6 +7,7 @@ import { Icons } from '@/components/icons';
 import { Commitment } from '../../types';
 import { PriorityBadge } from '../status-badges';
 import { formatSafeDate } from '../../lib/format-date';
+import { cn } from '@/lib/utils';
 
 interface CommitmentCardProps extends Omit<
   React.ComponentProps<typeof KanbanItem>,
@@ -22,6 +23,8 @@ export function CommitmentCard({ commitment, onSelect, ...props }: CommitmentCar
       key={commitment.id}
       value={commitment.id}
       {...props}
+      disabled={commitment.readOnly}
+      className={cn(props.className, commitment.readOnly && 'pointer-events-auto opacity-100')}
       render={
         <div
           role='button'
@@ -44,6 +47,8 @@ export function CommitmentCard({ commitment, onSelect, ...props }: CommitmentCar
             {commitment.title}
           </span>
           {commitment.priority ? <PriorityBadge priority={commitment.priority} /> : null}
+          {commitment.overdue ? <Badge variant='destructive'>Overdue</Badge> : null}
+          {commitment.needsFollowUp ? <Badge variant='outline'>Needs follow-up</Badge> : null}
         </div>
 
         {/* Originating Decision Tag */}
@@ -84,7 +89,11 @@ export function CommitmentCard({ commitment, onSelect, ...props }: CommitmentCar
                 {commitment.evidence.length}
               </span>
             )}
-            <time className='text-[10px] tabular-nums font-medium'>{commitment.deadline ? formatSafeDate(commitment.deadline, undefined, 'No deadline') : 'No deadline'}</time>
+            <time className='text-[10px] tabular-nums font-medium'>
+              {commitment.deadline
+                ? formatSafeDate(commitment.deadline, undefined, 'No deadline')
+                : 'No deadline'}
+            </time>
           </div>
         </div>
       </div>
