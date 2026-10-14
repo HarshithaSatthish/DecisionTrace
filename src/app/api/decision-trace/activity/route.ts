@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { FIXTURE_ACTIVITY } from '@/features/decision-trace/data/fixtures';
+import { mapAuditActionToActivityType } from '@/lib/activity-mapping';
 import { verifyDecisionTraceAuth, isDevPreviewEnabled } from '@/lib/decision-trace-auth';
 
 interface RawAuditEvent {
@@ -31,7 +32,8 @@ export async function GET(request: NextRequest) {
     try {
       const res = await fetch(`${backendUrl}/activity?${searchParams.toString()}`, {
         headers: authResult.headers,
-        cache: 'no-store'
+        cache: 'no-store',
+        signal: AbortSignal.timeout(10000)
       });
       if (res.ok) {
         const raw = await res.json();
@@ -40,14 +42,7 @@ export async function GET(request: NextRequest) {
           if (a.title && a.description && a.type) {
             return a; // Already ActivityItem format
           }
-          let actType = 'conversation_processed';
-          if (a.action?.includes('decision')) actType = 'decision_extracted';
-          else if (a.action?.includes('conflict') || a.action?.includes('finding'))
-            actType = 'conflict_detected';
-          else if (a.action?.includes('approve') || a.action?.includes('executed'))
-            actType = 'approval_executed';
-          else if (a.action?.includes('request')) actType = 'approval_requested';
-          else if (a.action?.includes('update')) actType = 'commitment_updated';
+          const actType = mapAuditActionToActivityType(a.action, a.entity_type);
 
           const actionLabel = (a.action || 'event').replace(/_/g, ' ');
           return {
@@ -92,5 +87,5 @@ export async function GET(request: NextRequest) {
     return res;
   }
 
-  return NextResponse.json([]);
+  return NextResponse.json({ error: 'Backend unavailable. Please retry.' }, { status: 503 });
 }

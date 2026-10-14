@@ -1,6 +1,6 @@
 import React from 'react';
 import PageContainer from '@/components/layout/page-container';
-import { getApprovals } from '@/features/decision-trace/api/service';
+import { getApprovals } from '@/features/decision-trace/api/server';
 import { ApprovalsList } from '@/features/decision-trace/components/approvals/approvals-list';
 import { DevelopmentPreviewBanner } from '@/features/decision-trace/components/development-preview-banner';
 import { Badge } from '@/components/ui/badge';
@@ -31,7 +31,8 @@ export default async function ApprovalsPage() {
           </div>
           <div className='flex items-center gap-2'>
             <Badge variant='outline' className='text-xs'>
-              {approvals.length} Approval Items
+              {approvals.filter((a) => a.status === 'pending').length} Pending · {approvals.length}{' '}
+              Total
             </Badge>
           </div>
         </div>

@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     );
 
     const response = NextResponse.json(analysis);
-    if (!isLyzrConfigured()) {
+    if (analysis.provenance.mode !== 'live-lyzr-agent') {
       response.headers.set('X-DecisionTrace-Lyzr-Engine', 'deterministic-grounded-preview');
     } else {
       response.headers.set('X-DecisionTrace-Lyzr-Engine', 'live-lyzr-studio');

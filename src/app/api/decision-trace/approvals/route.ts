@@ -43,7 +43,8 @@ export async function GET() {
     try {
       const res = await fetch(`${backendUrl}/approvals`, {
         headers: authResult.headers,
-        cache: 'no-store'
+        cache: 'no-store',
+        signal: AbortSignal.timeout(10000)
       });
       if (res.ok) {
         const raw = await res.json();
@@ -72,7 +73,7 @@ export async function GET() {
                   ? 'approved'
                   : 'rejected',
             impactLevel: 'high',
-            exactActionPreview: `Execute atomic mutation on decision '${r.action_payload?.topic}' -> '${r.action_payload?.new_value}' (Key: ${r.execution_key})`,
+            exactActionPreview: `Update decision '${r.action_payload?.topic || topic}' to '${r.action_payload?.new_value || ''}'.`,
             targetEntityId: String(r.finding_id || r.id),
             targetEntityType: 'decision',
             evidence: r.evidence || []
@@ -91,5 +92,5 @@ export async function GET() {
     return res;
   }
 
-  return NextResponse.json([]);
+  return NextResponse.json({ error: 'Backend unavailable. Please retry.' }, { status: 503 });
 }

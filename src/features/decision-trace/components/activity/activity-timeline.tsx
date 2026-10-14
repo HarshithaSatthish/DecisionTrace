@@ -1,5 +1,7 @@
 'use client';
 
+import { activityMatchesTab } from '@/lib/activity-mapping';
+
 import React, { useState, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -101,7 +103,7 @@ export function ActivityTimeline({ initialActivity }: ActivityTimelineProps) {
         item.description.toLowerCase().includes(search.toLowerCase()) ||
         (item.actor && item.actor.toLowerCase().includes(search.toLowerCase()));
 
-      const matchType = typeFilter === 'all' || item.type === typeFilter;
+      const matchType = activityMatchesTab(item.type, typeFilter);
       return matchSearch && matchType;
     });
   }, [activities, search, typeFilter]);

@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { applyApprovalStatus, countApprovalsByStatus, filterApprovals } from '@/lib/approval-state';
 import { ApprovalRequest } from '../../types';
 import { ApprovalCard } from './approval-card';
 import { Input } from '@/components/ui/input';
@@ -12,22 +14,27 @@ interface ApprovalsListProps {
 }
 
 export function ApprovalsList({ initialApprovals }: ApprovalsListProps) {
-  const [approvals] = useState<ApprovalRequest[]>(initialApprovals);
+  const router = useRouter();
+  const [approvals, setApprovals] = useState<ApprovalRequest[]>(initialApprovals);
+  // Re-sync when the server component re-renders with fresh backend data
+  useEffect(() => setApprovals(initialApprovals), [initialApprovals]);
+
+  const handleActionComplete = useCallback(
+    (id: string, newStatus: string) => {
+      setApprovals((prev) => applyApprovalStatus(prev, id, newStatus as ApprovalRequest['status']));
+      router.refresh();
+    },
+    [router]
+  );
+
+  const counts = useMemo(() => countApprovalsByStatus(approvals), [approvals]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  const filtered = useMemo(() => {
-    return approvals.filter((a) => {
-      const matchSearch =
-        search === '' ||
-        a.title.toLowerCase().includes(search.toLowerCase()) ||
-        a.description.toLowerCase().includes(search.toLowerCase()) ||
-        a.proposedBy.toLowerCase().includes(search.toLowerCase());
-
-      const matchStatus = statusFilter === 'all' || a.status === statusFilter;
-      return matchSearch && matchStatus;
-    });
-  }, [approvals, search, statusFilter]);
+  const filtered = useMemo(
+    () => filterApprovals(approvals, statusFilter, search),
+    [approvals, search, statusFilter]
+  );
 
   return (
     <div className='space-y-4'>
@@ -52,7 +59,7 @@ export function ApprovalsList({ initialApprovals }: ApprovalsListProps) {
               onClick={() => setStatusFilter(st)}
               className='h-7 px-2.5 text-xs capitalize'
             >
-              {st}
+              {st} ({counts[st] ?? 0})
             </Button>
           ))}
         </div>
@@ -65,11 +72,19 @@ export function ApprovalsList({ initialApprovals }: ApprovalsListProps) {
             <Icons.shieldCheck className='size-8 text-muted-foreground pb-1' />
             <h4 className='text-sm font-semibold text-foreground'>No Approvals Found</h4>
             <p className='text-xs text-muted-foreground'>
-              There are no pending actions matching your filter criteria.
+              {statusFilter === 'all'
+                ? 'There are no approval requests matching your search.'
+                : `There are no ${statusFilter} approval requests matching your search.`}
             </p>
           </div>
         ) : (
-          filtered.map((approval) => <ApprovalCard key={approval.id} approval={approval} />)
+          filtered.map((approval) => (
+            <ApprovalCard
+              key={`${approval.id}:${approval.status}`}
+              approval={approval}
+              onActionComplete={handleActionComplete}
+            />
+          ))
         )}
       </div>
     </div>

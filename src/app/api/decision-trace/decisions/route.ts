@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { FIXTURE_DECISIONS } from '@/features/decision-trace/data/fixtures';
+import { mapBackendEvidence } from '@/lib/evidence-mapping';
 import { verifyDecisionTraceAuth, isDevPreviewEnabled } from '@/lib/decision-trace-auth';
 
 export const dynamic = 'force-dynamic';
@@ -42,7 +43,8 @@ export async function GET(request: NextRequest) {
     try {
       const res = await fetch(`${backendUrl}/decisions?${searchParams.toString()}`, {
         headers: authResult.headers,
-        cache: 'no-store'
+        cache: 'no-store',
+        signal: AbortSignal.timeout(10000)
       });
       if (res.ok) {
         const raw = await res.json();
@@ -70,7 +72,7 @@ export async function GET(request: NextRequest) {
               channel: 'Voice (Omi)',
               timestamp: d.updated_at || d.created_at || new Date().toISOString()
             },
-            evidence: Array.isArray(d.evidence) ? d.evidence : [],
+            evidence: mapBackendEvidence(d.evidence, topicTitle),
             confidence: d.confidence ?? 95,
             confidenceLevel: d.confidenceLevel || 'high',
             relatedCommitmentIds: d.relatedCommitmentIds || [String(d.id)],
@@ -108,5 +110,5 @@ export async function GET(request: NextRequest) {
   }
 
   // Production offline: return empty list, never fake decisions
-  return NextResponse.json([]);
+  return NextResponse.json({ error: 'Backend unavailable. Please retry.' }, { status: 503 });
 }
