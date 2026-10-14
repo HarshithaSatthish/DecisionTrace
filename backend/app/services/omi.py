@@ -33,9 +33,7 @@ def ingest_omi_memory(
     # 2. Deduplication check by (installation_id, source_event_id) FIRST (idempotent for all retries)
     existing_conv = get_conversation_by_source_id(session, integration.id, payload.id)
     if existing_conv:
-        logger.info(
-            f"Duplicate Omi memory received: {payload.id} for installation {integration.id}"
-        )
+        logger.info(f"Duplicate Omi memory received: {payload.id} for installation {integration.id}")
         return status.HTTP_200_OK, WebhookResponse(
             status="discarded" if existing_conv.status == "discarded" else "duplicate",
             conversation_id=existing_conv.id,
@@ -81,6 +79,8 @@ def ingest_omi_memory(
             )
 
     source_time = payload.finished_at or payload.created_at or utc_now()
+    if len(normalized_text) > 50000:
+        raise HTTPException(status_code=413, detail="Transcript exceeds 50,000 characters. Send shorter conversations.")
     now = utc_now()
 
     # 5. Outbox commit: create Conversation and ProcessingJob in 'received' state
@@ -133,9 +133,7 @@ def ingest_omi_memory(
                 session.add(conv)
                 session.commit()
             else:
-                logger.warning(
-                    f"Redis enqueue returned None for job {job.id}. Keeping state='received' with queued_at=None."
-                )
+                logger.warning(f"Redis enqueue returned None for job {job.id}. Keeping state='received' with queued_at=None.")
         except Exception as e:
             logger.warning(f"Could not immediately enqueue to Redis: {e}. Reconciler will recover.")
 
