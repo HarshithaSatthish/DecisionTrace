@@ -1,3 +1,4 @@
+import { mapBackendEvidence } from '@/lib/evidence-mapping';
 import { mapAuditActionToActivityType } from '@/lib/activity-mapping';
 import {
   Decision,
@@ -246,16 +247,19 @@ export function transformBackendDecisions(items: unknown[]): Decision[] {
         channel: 'Voice (Omi)',
         timestamp: updatedTime || createdTime || ''
       },
-      evidence: Array.isArray(d.evidence)
-        ? d.evidence
-        : (d.source_evidence || []).map((item) => ({
-            id: item.chunk_id,
-            sourceType: 'meeting',
-            sourceTitle: 'Omi conversation',
-            speakerOrAuthor: 'Unattributed',
-            timestamp: item.source_time || '',
-            quote: item.excerpt
-          })),
+      // Prefer Codex source_evidence; fall back to PR #15 `evidence` (raw backend excerpts or
+      // already-mapped references), normalised by mapBackendEvidence.
+      evidence:
+        d.source_evidence && d.source_evidence.length > 0
+          ? d.source_evidence.map((item) => ({
+              id: item.chunk_id,
+              sourceType: 'meeting' as const,
+              sourceTitle: 'Omi conversation',
+              speakerOrAuthor: 'Unattributed',
+              timestamp: item.source_time || '',
+              quote: item.excerpt
+            }))
+          : mapBackendEvidence(d.evidence, topicTitle),
       confidence: confidenceVal,
       confidenceLevel: confidenceLevelVal,
       relatedCommitmentIds: d.relatedCommitmentIds || [String(d.id)],
@@ -292,7 +296,7 @@ export function transformBackendDecisionsToCommitments(items: unknown[]): Commit
       priority: d.priority || undefined,
       relatedDecisionId: d.decision_id || String(d.id),
       relatedDecisionTitle: topicTitle,
-      evidence: Array.isArray(d.evidence) ? d.evidence : [],
+      evidence: mapBackendEvidence(d.evidence, topicTitle),
       progressPercentage: progressVal,
       readOnly: d.readOnly ?? false,
       overdue: d.overdue ?? false,
