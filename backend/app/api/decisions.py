@@ -7,10 +7,15 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, col, func, select
 
 from app.core.security import verify_clerk_token
-from app.db.models import Decision
+from app.db.models import ConversationChunk, Decision, DecisionEvidence
 from app.db.repository import get_or_create_user
 from app.db.session import get_session
-from app.schemas.decision import DecisionDetailRead, DecisionListResponse, DecisionRead
+from app.schemas.decision import (
+    DecisionDetailRead,
+    DecisionEvidenceItem,
+    DecisionListResponse,
+    DecisionRead,
+)
 
 router = APIRouter(prefix="/decisions", tags=["Decisions"])
 
@@ -40,8 +45,43 @@ def list_decisions(
         query.order_by(col(Decision.updated_at).desc()).offset(offset).limit(limit)
     ).all()
 
-    items = [DecisionRead.model_validate(d) for d in results]
+    evidence_by_decision = _load_evidence(session, user.id, [d.id for d in results])
+    items = []
+    for d in results:
+        item = DecisionRead.model_validate(d)
+        item.evidence = evidence_by_decision.get(d.id, [])
+        items.append(item)
     return DecisionListResponse(items=items, total=total, limit=limit, offset=offset)
+
+
+def _load_evidence(session: Session, user_id, decision_ids: list) -> dict:
+    """Evidence excerpts per decision, joined only to chunks owned by the same user."""
+    if not decision_ids:
+        return {}
+    rows = session.exec(
+        select(DecisionEvidence, ConversationChunk)
+        .join(ConversationChunk, ConversationChunk.id == DecisionEvidence.chunk_id)
+        .where(
+            col(DecisionEvidence.decision_id).in_(decision_ids),
+            ConversationChunk.user_id == user_id,
+        )
+    ).all()
+    out: dict = {}
+    seen: set = set()
+    for ev, chunk in rows:
+        key = (ev.decision_id, chunk.id)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.setdefault(ev.decision_id, []).append(
+            DecisionEvidenceItem(
+                chunk_id=chunk.id,
+                conversation_id=chunk.conversation_id,
+                excerpt=chunk.excerpt,
+                source_time=chunk.source_time,
+            )
+        )
+    return out
 
 
 @router.get("/{decision_id}", response_model=DecisionDetailRead)
